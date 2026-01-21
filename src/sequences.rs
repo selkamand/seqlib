@@ -1,7 +1,6 @@
 use crate::base::{self, Alphabet, Base};
 use crate::errors::SeqError;
 use core::fmt;
-use std::collections::BTreeSet;
 
 /// A biological sequence with an associated alphabet (DNA/RNA).
 ///
@@ -55,59 +54,31 @@ impl<B: Base> Seq<B> {
 
         Ok(Seq { seq, alphabet })
     }
+    /// Returns the middle base of the sequence.
+    ///
+    /// If the sequence length is odd, this returns a reference to the base
+    /// at the center of the sequence. If the length is zero or even,
+    /// `None` is returned.
+    ///
+    /// # Examples
+    ///
+    /// ```text
+    /// Length 5: index 2 is returned
+    /// Length 4: returns None
+    /// ```
+    ///
+    /// # Returns
+    ///
+    /// - `Some(&B)` if the sequence length is odd
+    /// - `None` if the sequence is empty or even-length
+    pub fn middlebase(&self) -> Option<&B> {
+        let len = self.len();
+
+        if len == 0 || len.is_multiple_of(2) {
+            return None;
+        }
+
+        let idx_middle = len / 2;
+        self.seq.get(idx_middle)
+    }
 }
-// impl Seq {
-//     /// Returns the length of the sequence in characters.
-//     ///
-//     /// This corresponds to the number of bases in the sequence.
-//     pub fn len(&self) -> usize {
-//         self.seq.len()
-//     }
-//
-//     /// Returns `true` if the sequence is empty.
-//     pub fn is_empty(&self) -> bool {
-//         self.seq.is_empty()
-//     }
-//
-//     /// Constructs a new `Seq` from a string slice and an alphabet.
-//     ///
-//     /// The sequence is validated against the provided alphabet. If any
-//     /// invalid characters are found, construction fails with a
-//     /// [`SeqError::InvalidCharacters`] error containing the unique set
-//     /// of offending characters.
-//     ///
-//     /// # Errors
-//     ///
-//     /// Returns `SeqError::InvalidCharacters` if the sequence contains
-//     /// characters not permitted by the given alphabet.
-//     pub fn new(seq: &str, alphabet: Alphabet) -> Result<Self, SeqError> {
-//         if seq.chars().any(|c| !alphabet.is_valid_char(c)) {
-//             let invalid: BTreeSet<char> = seq
-//                 .chars()
-//                 .filter(|&c| !alphabet.is_valid_char(c))
-//                 .collect();
-//
-//             if !invalid.is_empty() {
-//                 let invalid = invalid.into_iter().collect::<String>();
-//                 return Err(SeqError::InvalidCharacters { alphabet, invalid });
-//             }
-//         }
-//
-//         Ok(Self {
-//             seq: seq.to_owned(),
-//             alphabet,
-//         })
-//     }
-//
-//     /// Returns the length of the sequence in characters.
-//     ///
-//     /// This is an alias for [`Seq::len`].
-//     pub fn length(&self) -> usize {
-//         self.seq.len()
-//     }
-//
-//     /// Returns a reference to the sequence’s alphabet.
-//     pub fn alphabet(&self) -> &Alphabet {
-//         &self.alphabet
-//     }
-// }
