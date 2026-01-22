@@ -18,3 +18,7 @@ cargo add seqlib --git https://github.com/selkamand/seqlib
 
 ## Features
 
+
+## Usage
+
+See (examples)[examples] folder for typical use cases.

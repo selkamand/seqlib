@@ -24,7 +24,10 @@ use crate::errors::SeqError;
 /// The contract is:
 /// - `complement` is infallible (it always returns something)
 /// - `try_from_ascii` is the validation gate (it may fail)
-pub trait Base: Copy + Eq + fmt::Debug {
+pub trait Base: Copy + Eq + fmt::Debug + fmt::Display {
+    /// Name of the alphabet
+    const ALPHABET: Alphabet;
+
     /// Return the complement of this base.
     ///
     /// Examples (DNA):
@@ -53,6 +56,8 @@ pub trait Base: Copy + Eq + fmt::Debug {
     /// even though the biological base is the same.
     fn to_ascii_lower(self) -> u8;
 
+    /// Check if base only represents one possible nucleotide (e.g. A/C/T/U/G).
+    /// Bases like `R` can represent multiple possible nucleotides (in this case, A or G)
     fn is_unambiguous(self) -> bool {
         !self.is_ambiguous()
     }
@@ -77,6 +82,15 @@ pub trait Base: Copy + Eq + fmt::Debug {
     /// This is useful because some operations (like translation) usually require
     /// unambiguous sequences.
     fn is_ambiguous(self) -> bool;
+
+    /// Classify the type of Base (Purine Vs Pyrimidine vs Uncertain)
+    fn chemical_class(self) -> Option<ChemClass>;
+}
+
+#[derive(Debug, Clone, Copy, Eq, PartialEq)]
+pub enum ChemClass {
+    Purine,
+    Pyrimidine,
 }
 
 /// DNA nucleotide symbols including IUPAC ambiguity codes.
@@ -137,6 +151,8 @@ pub enum RnaBase {
 }
 
 impl Base for DnaBase {
+    const ALPHABET: Alphabet = Alphabet::DNA;
+
     fn complement(self) -> Self {
         match self {
             Self::A => Self::T,
@@ -230,14 +246,40 @@ impl Base for DnaBase {
     }
 
     fn is_ambiguous(self) -> bool {
+        !matches!(self, DnaBase::A | DnaBase::C | DnaBase::G | DnaBase::T)
+    }
+
+    fn chemical_class(self) -> Option<ChemClass> {
         match self {
-            DnaBase::A | DnaBase::C | DnaBase::G | DnaBase::T => false,
-            _ => true,
+            DnaBase::A => Some(ChemClass::Purine),
+            DnaBase::G => Some(ChemClass::Purine),
+            DnaBase::C => Some(ChemClass::Pyrimidine),
+            DnaBase::T => Some(ChemClass::Pyrimidine),
+            DnaBase::N => None,
+            DnaBase::R => Some(ChemClass::Purine),
+            DnaBase::Y => Some(ChemClass::Pyrimidine),
+            DnaBase::S => None,
+            DnaBase::W => None,
+            DnaBase::K => None,
+            DnaBase::M => None,
+            DnaBase::B => None,
+            DnaBase::D => None,
+            DnaBase::H => None,
+            DnaBase::V => None,
         }
     }
 }
 
+impl fmt::Display for DnaBase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use core::fmt::Write;
+        f.write_char((*self).to_char())
+    }
+}
+
 impl Base for RnaBase {
+    const ALPHABET: Alphabet = Alphabet::RNA;
+
     fn try_from_ascii(b: u8) -> Result<Self, SeqError> {
         if !b.is_ascii() {
             return Err(SeqError::InvalidByte {
@@ -330,10 +372,34 @@ impl Base for RnaBase {
     }
 
     fn is_ambiguous(self) -> bool {
+        !matches!(self, RnaBase::A | RnaBase::C | RnaBase::G | RnaBase::U)
+    }
+
+    fn chemical_class(self) -> Option<ChemClass> {
         match self {
-            RnaBase::A | RnaBase::C | RnaBase::G | RnaBase::U => false,
-            _ => true,
+            RnaBase::A => Some(ChemClass::Purine),
+            RnaBase::G => Some(ChemClass::Purine),
+            RnaBase::C => Some(ChemClass::Pyrimidine),
+            RnaBase::U => Some(ChemClass::Pyrimidine),
+            RnaBase::N => None,
+            RnaBase::R => Some(ChemClass::Purine),
+            RnaBase::Y => Some(ChemClass::Pyrimidine),
+            RnaBase::S => None,
+            RnaBase::W => None,
+            RnaBase::K => None,
+            RnaBase::M => None,
+            RnaBase::B => None,
+            RnaBase::D => None,
+            RnaBase::H => None,
+            RnaBase::V => None,
         }
+    }
+}
+
+impl fmt::Display for RnaBase {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        use core::fmt::Write;
+        f.write_char((*self).to_char())
     }
 }
 
@@ -344,6 +410,15 @@ impl Base for RnaBase {
 pub enum Alphabet {
     DNA,
     RNA,
+}
+
+impl fmt::Display for Alphabet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Alphabet::DNA => write!(f, "DNA"),
+            Alphabet::RNA => write!(f, "RNA"),
+        }
+    }
 }
 
 #[cfg(test)]
