@@ -158,6 +158,23 @@ impl<B: Base> Seq<B> {
         B::ALPHABET
     }
 
+    /// Returns a new sequence with the bases in reverse order.
+    ///
+    /// This operation does **not** modify the original sequence.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seqlib::sequences::DnaSeq;
+    ///
+    /// let seq = DnaSeq::new("ACGT").unwrap();
+    /// assert_eq!(seq.reverse().to_string(), "TGCA");
+    /// ```
+    pub fn reverse(&self) -> Seq<B> {
+        let newseq: Vec<B> = self.seq.iter().copied().rev().collect();
+        Seq { seq: newseq }
+    }
+
     /// Returns `true` if any base in the sequence is ambiguous.
     ///
     /// Ambiguous bases include IUPAC codes such as `N`, `R`, `Y`, etc.
@@ -224,6 +241,95 @@ impl<B: Base> Seq<B> {
         )
     }
 
+    /// Extract a subsequence as a new, independent `Seq`.
+    ///
+    /// This method uses **0-based indexing** and a **half-open interval**: `[start, end)`.
+    /// That means:
+    /// - `start` is included
+    /// - `end` is excluded
+    ///
+    /// This is the **safe, ergonomic default** for most users: the returned subsequence
+    /// is an owned copy, so it can be stored, returned from functions, or modified
+    /// without affecting the original sequence.
+    ///
+    /// # Arguments
+    ///
+    /// * `start` - Start index (inclusive, 0-based)
+    /// * `end` - End index (exclusive, 0-based)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - `start > end`
+    /// - `end > self.len()`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use seqlib::sequences::DnaSeq;
+    ///
+    /// let seq = DnaSeq::new("ACGTAC").unwrap();
+    /// let sub = seq.subseq(1, 4).unwrap(); // bases 1,2,3
+    /// assert_eq!(sub.to_string(), "CGT");
+    /// ```
+    pub fn subseq(&self, start: usize, end: usize) -> Result<Seq<B>, SeqError> {
+        if start > end || end > self.len() {
+            return Err(SeqError::InvalidSlice {
+                start,
+                end,
+                len: self.len(),
+            });
+        }
+
+        Ok(Seq {
+            seq: self.seq[start..end].to_vec(),
+        })
+    }
+
+    /// Extract a subsequence as a **borrowed view** (`&[B]`) with **no copying**.
+    ///
+    /// This method uses **0-based indexing** and a **half-open interval**: `[start, end)`.
+    ///
+    /// Compared to [`Seq::subseq`], this version:
+    /// - does **not** allocate
+    /// - does **not** copy bases
+    /// - is ideal for quickly computing statistics on many subsequences
+    ///
+    /// Because it returns a borrowed slice, the returned value is only valid while
+    /// the original `Seq` is still alive. Also, Rust will prevent you from calling
+    /// in-place mutation methods (like `reverse_in_place`) while this slice is in use.
+    ///
+    /// # Arguments
+    ///
+    /// * `start` - Start index (inclusive, 0-based)
+    /// * `end` - End index (exclusive, 0-based)
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if:
+    /// - `start > end`
+    /// - `end > self.len()`
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use seqlib::sequences::DnaSeq;
+    ///
+    /// let seq = DnaSeq::new("ACGTAC").unwrap();
+    /// let sub = seq.subseq_slice(1, 4).unwrap();
+    /// assert_eq!(sub.len(), 3);
+    /// ```
+    pub fn subseq_slice(&self, start: usize, end: usize) -> Result<&[B], SeqError> {
+        if start > end || end > self.len() {
+            return Err(SeqError::InvalidSlice {
+                start,
+                end,
+                len: self.len(),
+            });
+        }
+
+        Ok(&self.seq[start..end])
+    }
     /// Parses and validates a sequence from a string slice.
     ///
     /// This is the main construction “gatekeeper”: it converts each ASCII character
