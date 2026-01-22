@@ -91,7 +91,9 @@ small self-contained demonstrations.
 
 ---
 
-## Non-goals
+## Out of Scope
+
+To keep seqlib focused the following features will not be implemented in this library.
 
 - No FASTA / FASTQ parsing
 - No file I/O
