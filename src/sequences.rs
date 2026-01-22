@@ -10,7 +10,7 @@ use core::fmt;
 ///
 /// This struct is not appropriate for larger-than-memory sequences.
 /// It also completely ignores softmasks (for now)
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Seq<B: Base> {
     seq: Vec<B>, // A vector of objects with the Base Trait
 }
@@ -79,22 +79,6 @@ pub type RnaSeq = Seq<RnaBase>;
 
 // Other functions we can run on Seq
 impl<B: Base> Seq<B> {
-    /// Returns the sequence as a `String` using uppercase IUPAC symbols.
-    ///
-    /// This is a convenience method for turning an in-memory `Seq<B>` back into a normal
-    /// string representation (e.g. for printing, logging, or writing FASTA).
-    ///
-    /// Note: this always uses the uppercase representation, even if the original input
-    /// contained lowercase characters.
-    pub fn to_string_upper(&self) -> String {
-        self.seq.iter().map(|b| b.to_char()).collect()
-    }
-
-    /// Returns `true` if the sequence contains zero bases.
-    pub fn is_empty(&self) -> bool {
-        self.seq.is_empty()
-    }
-
     /// Returns the number of bases in the sequence.
     pub fn len(&self) -> usize {
         self.seq.len()
@@ -219,9 +203,91 @@ impl<B: Base> Seq<B> {
         !self.any_ambiguous()
     }
 
-    /// Returns `true` if sequence is palindromic (sequence matches its reverse complement)
+    /// Returns `true` if the sequence contains zero bases.
+    pub fn is_empty(&self) -> bool {
+        self.seq.is_empty()
+    }
+
+    /// Returns `true` if the sequence is **certainly palindromic**.
+    ///
+    /// A sequence is considered *palindromic* if it is identical to its
+    /// **reverse complement** at the level of *concrete nucleotide bases*.
+    /// This method uses a **strict, conservative definition** and only returns
+    /// `true` when palindromicity can be established with **100% certainty**.
+    ///
+    /// ## Certainty guarantees
+    ///
+    /// This method returns `true` **only if all of the following hold**:
+    ///
+    /// 1. **The sequence contains no ambiguous bases**
+    ///    - Any IUPAC ambiguity code (e.g. `N`, `R`, `Y`, `S`, etc.) makes it
+    ///      impossible to determine palindromicity with certainty, because such
+    ///      symbols represent multiple possible concrete bases.
+    ///    - Sequences containing *any* ambiguous base always return `false`.
+    ///
+    /// 2. **The sequence length is non-zero and even**
+    ///    - Empty sequences are not considered palindromic.
+    ///    - For DNA/RNA, no unambiguous base is self-complementary, so
+    ///      odd-length sequences cannot form concrete palindromes.
+    ///
+    /// 3. **Each base matches the complement of its mirrored base**
+    ///    - For every position `i` in the first half of the sequence,
+    ///      `seq[i] == complement(seq[n - 1 - i])` must hold.
+    ///
+    /// ## What this method does *not* do
+    ///
+    /// - It does **not** treat symbolically palindromic sequences as palindromes
+    ///   if ambiguity is present (e.g. `NNNNNN` or `SAAS`).
+    /// - It does **not** consider “possibly palindromic” sequences; the result
+    ///   reflects *certainty*, not potential.
+    ///
+    /// ## Intended use
+    ///
+    /// This definition is designed for **counting and filtering palindromic
+    /// sequences without overcounting**, making it suitable for statistical
+    /// analyses, motif discovery, and other contexts where false positives
+    /// caused by ambiguity must be avoided.
+    ///
+    /// ## Examples
+    ///
+    /// ```rust
+    /// use seqlib::sequences::DnaSeq;
+    ///
+    /// // A concrete, unambiguous palindrome
+    /// assert!(DnaSeq::new("GAATTC").unwrap().is_palindromic());
+    ///
+    /// // Symbolically palindromic but ambiguous → false
+    /// assert!(!DnaSeq::new("NNNNNN").unwrap().is_palindromic());
+    ///
+    /// // Odd length → false
+    /// assert!(!DnaSeq::new("AAA").unwrap().is_palindromic());
+    /// ```
     pub fn is_palindromic(&self) -> bool {
-        todo!();
+        // Any ambiguous characters make it impossible to identify palindromes with certainty.
+        // We set all these sequences to `false``
+        if self.any_ambiguous() {
+            return false;
+        }
+
+        let n = self.len();
+
+        // Empty sequences are not considered palindromes
+        if n == 0 {
+            return false;
+        };
+
+        // Only even numbered sequences can be palindromes
+        if n % 2 != 0 {
+            return false;
+        }
+
+        // Actually check palindrome status
+        for i in 0..(n / 2) {
+            if self.seq[i] != self.seq[n - 1 - i].complement() {
+                return false;
+            }
+        }
+        true
     }
     /// Returns `true` if the middle base of the sequence is a pyrimidine.
     ///
@@ -263,6 +329,9 @@ impl<B: Base> Seq<B> {
         let pyrimidine_centered = self.pyrimidine_centered();
 
         let any_ambiguous = self.any_ambiguous();
+        let palindrome = self.is_palindromic();
+        let complement = self.complement();
+        let reverse_complement = self.reverse_complement();
 
         format!(
             "----------------\n\
@@ -270,10 +339,13 @@ impl<B: Base> Seq<B> {
              ----------------\n\
              Alphabet : {alphabet}\n\
              Sequence : {self}\n\
+             Reverse Complement: {reverse_complement}\n\
+             Complement: {complement}\n\
              Length   : {len}\n\
              Any Ambiguous: {any_ambiguous}\n\
              Middle Base: {middlebase}\n\
              Pyrimidine Centered: {pyrimidine_centered}\n\
+             Palindrome: {palindrome}\n
              "
         )
     }
@@ -385,6 +457,19 @@ impl<B: Base> Seq<B> {
         Ok(&self.seq[start..end])
     }
 
+    // Conversions to other data types
+
+    /// Returns the sequence as a `String` using uppercase IUPAC symbols.
+    ///
+    /// This is a convenience method for turning an in-memory `Seq<B>` back into a normal
+    /// string representation (e.g. for printing, logging, or writing FASTA).
+    ///
+    /// Note: this always uses the uppercase representation, even if the original input
+    /// contained lowercase characters.
+    pub fn to_string_upper(&self) -> String {
+        self.seq.iter().map(|b| b.to_char()).collect()
+    }
+
     /// Returns the sequence as a read-only slice of bases.
     ///
     /// This provides **borrowed access** to the underlying contiguous storage
@@ -452,5 +537,235 @@ impl<B: Base> Seq<B> {
         }
 
         Ok(Self { seq })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::base::DnaBase;
+
+    // --- Helpers ---
+
+    fn dna(s: &str) -> DnaSeq {
+        DnaSeq::new(s).unwrap()
+    }
+
+    fn rna(s: &str) -> RnaSeq {
+        RnaSeq::new(s).unwrap()
+    }
+
+    // --- Construction / strict alphabets ---
+
+    #[test]
+    fn new_rejects_invalid_characters_dna() {
+        assert!(DnaSeq::new("ACGTX").is_err());
+    }
+
+    #[test]
+    fn new_rejects_u_in_dna_strict() {
+        // Strict DNA: U is not allowed
+        assert!(DnaSeq::new("ACGU").is_err());
+    }
+
+    #[test]
+    fn new_rejects_t_in_rna_strict() {
+        // Strict RNA: T is not allowed
+        assert!(RnaSeq::new("ACGT").is_err());
+    }
+
+    #[test]
+    fn new_accepts_lowercase() {
+        // try_from_ascii is case-insensitive in your Base impls
+        let s = dna("acgtn");
+        assert_eq!(s.to_string_upper(), "ACGTN");
+    }
+
+    // --- Basic properties ---
+
+    #[test]
+    fn len_and_is_empty_work() {
+        let s = dna("");
+        assert_eq!(s.len(), 0);
+        assert!(s.is_empty());
+
+        let s2 = dna("A");
+        assert_eq!(s2.len(), 1);
+        assert!(!s2.is_empty());
+    }
+
+    #[test]
+    fn alphabet_is_correct() {
+        assert_eq!(dna("AC").alphabet(), Alphabet::DNA);
+        assert_eq!(rna("AC").alphabet(), Alphabet::RNA);
+    }
+
+    // --- middlebase / pyrimidine_centered ---
+
+    #[test]
+    fn middlebase_none_for_empty_or_even() {
+        assert!(dna("").middlebase().is_none());
+        assert!(dna("AC").middlebase().is_none());
+        assert!(dna("ACGT").middlebase().is_none());
+    }
+
+    #[test]
+    fn middlebase_some_for_odd() {
+        let s = dna("AGACT"); // len 5, middle index 2 => A
+        assert_eq!(*s.middlebase().unwrap(), DnaBase::A);
+    }
+
+    #[test]
+    fn pyrimidine_centered_true_only_when_middle_is_pyrimidine() {
+        // middle is C (pyrimidine)
+        assert!(dna("AACAA").pyrimidine_centered()); // middle = C
+
+        // middle is A (purine)
+        assert!(!dna("AAGAA").pyrimidine_centered()); // middle = G? Actually "AAGAA" middle is G (purine)
+        assert!(!dna("AAAAA").pyrimidine_centered()); // middle = A
+
+        // even length => false
+        assert!(!dna("AACC").pyrimidine_centered());
+    }
+
+    // --- Complement / reverse / reverse-complement (copying variants) ---
+
+    #[test]
+    fn complement_produces_expected_dna() {
+        let s = dna("AGACT");
+        assert_eq!(s.complement().to_string_upper(), "TCTGA");
+    }
+
+    #[test]
+    fn rev_and_reverse_match_and_do_not_modify_original() {
+        let s = dna("ACGT");
+        assert_eq!(s.rev().to_string_upper(), "TGCA");
+        assert_eq!(s.reverse().to_string_upper(), "TGCA");
+        assert_eq!(s.to_string_upper(), "ACGT"); // original unchanged
+    }
+
+    #[test]
+    fn reverse_complement_produces_expected_dna() {
+        let s = dna("ACGT");
+        assert_eq!(s.reverse_complement().to_string_upper(), "ACGT"); // ACGT is its own revcomp
+    }
+
+    // --- In-place complement / reverse / reverse-complement ---
+
+    #[test]
+    fn complement_in_place_mutates_sequence() {
+        let mut s = dna("ACGT");
+        s.complement_in_place();
+        assert_eq!(s.to_string_upper(), "TGCA");
+    }
+
+    #[test]
+    fn rev_in_place_mutates_sequence() {
+        let mut s = dna("ACGT");
+        s.rev_in_place();
+        assert_eq!(s.to_string_upper(), "TGCA");
+    }
+
+    #[test]
+    fn reverse_complement_in_place_matches_copying_version() {
+        let s = dna("AGACT");
+        let mut t = s.clone();
+        t.reverse_complement_in_place();
+        assert_eq!(
+            t.to_string_upper(),
+            s.reverse_complement().to_string_upper()
+        );
+    }
+
+    // --- Ambiguity predicates ---
+
+    #[test]
+    fn ambiguity_checks_work() {
+        assert!(dna("ACGT").all_unambiguous());
+        assert!(!dna("ACNT").all_unambiguous());
+
+        assert!(!dna("ACGT").any_ambiguous());
+        assert!(dna("ACNT").any_ambiguous());
+    }
+
+    // --- Palindrome (revcomp symmetry) ---
+
+    #[test]
+    fn is_palindromic_true_for_simple_palindrome() {
+        // GAATTC is a classic restriction site palindrome (EcoRI)
+        assert!(dna("GAATTC").is_palindromic());
+    }
+
+    #[test]
+    fn is_palindromic_false_for_non_palindrome() {
+        assert!(!dna("AGACT").is_palindromic());
+    }
+
+    #[test]
+    fn is_palindromic_handles_edge_cases() {
+        // Empty: empty sequences are not considered palindromic
+        assert!(!dna("").is_palindromic());
+
+        // Length-1 DNA cannot be palindromic unless the base equals its own complement.
+        // For DNA A<->T and C<->G, so no unambiguous base is self-complementary.
+        assert!(!dna("A").is_palindromic());
+        assert!(!dna("C").is_palindromic());
+
+        // Ambiguous IUPAC symbols like  S (C/G) can never be classified as symbolic with
+        // certainty since each A might be a different base!
+        assert!(!dna("SAAS").is_palindromic());
+
+        // Odd length sequences are never palindromes since the middle base will always break the
+        // palindrome (it cannot be identical when reverse complemented)
+        assert!(!dna("AAA").is_palindromic());
+    }
+
+    // --- Subsequence methods ---
+
+    #[test]
+    fn subseq_returns_expected_owned_copy() {
+        let s = dna("ACGTAC");
+        let sub = s.subseq(1, 4).unwrap();
+        assert_eq!(sub.to_string_upper(), "CGT");
+        assert_eq!(s.to_string_upper(), "ACGTAC"); // original unchanged
+    }
+
+    #[test]
+    fn subseq_slice_returns_expected_view() {
+        let s = dna("ACGTAC");
+        let sub = s.subseq_slice(1, 4).unwrap();
+        let as_string: String = sub.iter().map(|b| b.to_char()).collect();
+        assert_eq!(as_string, "CGT");
+    }
+
+    #[test]
+    fn subseq_in_place_mutates_without_allocating_new_seq() {
+        let mut s = dna("ACGTAC");
+        s.subseq_in_place(1, 4).unwrap();
+        assert_eq!(s.to_string_upper(), "CGT");
+    }
+
+    #[test]
+    fn subseq_errors_on_invalid_ranges() {
+        let s = dna("ACGT");
+        assert!(s.subseq(3, 2).is_err());
+        assert!(s.subseq(0, 10).is_err());
+        assert!(s.subseq_slice(3, 2).is_err());
+        assert!(s.subseq_slice(0, 10).is_err());
+
+        let mut t = dna("ACGT");
+        assert!(t.subseq_in_place(3, 2).is_err());
+        assert!(t.subseq_in_place(0, 10).is_err());
+    }
+
+    // --- as_slice ---
+
+    #[test]
+    fn as_slice_exposes_bases_read_only() {
+        let s = dna("ACGT");
+        let slice = s.as_slice();
+        assert_eq!(slice.len(), 4);
+        assert_eq!(slice[0], DnaBase::A);
+        assert_eq!(slice[3], DnaBase::T);
     }
 }
