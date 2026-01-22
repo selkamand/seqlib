@@ -1,4 +1,6 @@
-# seqlib <img src="assets/logo.png" align="right" height="138"/>
+<!-- # seqlib <img src="assets/logo.png" align="right" height="138"/> -->
+![Header](assets/banner.png)
+
 
 `seqlib` is a small, type-safe Rust library for working with DNA and RNA sequences.
 
