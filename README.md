@@ -1,3 +1,5 @@
+<img src="assets/logo.png" align="right" width="140" />
+
 # seqlib
 
 `seqlib` is a small, type-safe Rust library for working with DNA and RNA sequences.
