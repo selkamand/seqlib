@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::{
     base::{Base, ChemClass, DnaBase, RnaBase},
-    sequences::Seq,
+    sequence::Seq,
 };
 
 pub type DnaSmallMutation = SmallMutation<DnaBase>;
@@ -334,7 +334,7 @@ impl TiTv {
 mod tests {
     use super::*;
     use crate::base::{ChemClass, DnaBase, RnaBase};
-    use crate::sequences::Seq;
+    use crate::sequence::Seq;
 
     // --- Helpers ---
 

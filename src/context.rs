@@ -1,5 +1,5 @@
 use crate::error::{Error, Result};
-use crate::{base::Base, sequences::Seq};
+use crate::{base::Base, sequence::Seq};
 use std::num::NonZeroUsize;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
