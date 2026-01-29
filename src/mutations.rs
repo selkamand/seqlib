@@ -71,30 +71,30 @@ impl<B: Base> fmt::Display for SmallMutation<B> {
     }
 }
 
-/// Construct a new [`SmallMutation`].
-///
-/// This constructor does **not** attempt to validate biological correctness beyond
-/// what is already guaranteed by [`Seq<B>`] (i.e. sequences conform to the alphabet).
-///
-/// In particular, this type:
-/// - assumes `position` is **1-based** (VCF-style coordinates)
-/// - stores `reference` and `alternative` as provided (no trimming/normalization)
-/// - treats `multiallelic` as an external flag (e.g. derived from a multi-ALT record)
-/// - treats `pass` as an external flag describing upstream filtering/QC outcome
-/// - accepts an optional `context` sequence if the caller has already computed it
-///
-/// If you need allele normalization (left/right trimming of shared prefix/suffix),
-/// do it before constructing this type.
-///
-/// # Parameters
-/// - `chromosome`: reference sequence / contig name (e.g. `"chr1"`)
-/// - `position`: 1-based start coordinate
-/// - `reference`: reference allele sequence
-/// - `alternative`: alternative allele sequence
-/// - `multiallelic`: whether the originating site had multiple ALT alleles
-/// - `pass`: whether the originating record passed upstream filters/QC
-/// - `context`: optional context sequence (e.g. trinucleotide context)
 impl<B: Base> SmallMutation<B> {
+    /// Construct a new [`SmallMutation`].
+    ///
+    /// This constructor does **not** attempt to validate biological correctness beyond
+    /// what is already guaranteed by [`Seq<B>`] (i.e. sequences conform to the alphabet).
+    ///
+    /// In particular, this type:
+    /// - assumes `position` is **1-based** (VCF-style coordinates)
+    /// - stores `reference` and `alternative` as provided (no trimming/normalization)
+    /// - treats `multiallelic` as an external flag (e.g. derived from a multi-ALT record)
+    /// - treats `pass` as an external flag describing upstream filtering/QC outcome
+    /// - accepts an optional `context` sequence if the caller has already computed it
+    ///
+    /// If you need allele normalization (left/right trimming of shared prefix/suffix),
+    /// do it before constructing this type.
+    ///
+    /// # Parameters
+    /// - `chromosome`: reference sequence / contig name (e.g. `"chr1"`)
+    /// - `position`: 1-based start coordinate
+    /// - `reference`: reference allele sequence
+    /// - `alternative`: alternative allele sequence
+    /// - `multiallelic`: whether the originating site had multiple ALT alleles
+    /// - `pass`: whether the originating record passed upstream filters/QC
+    /// - `context`: optional context sequence (e.g. trinucleotide context)
     pub fn new(
         chromosome: String,
         position: u64,
