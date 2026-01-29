@@ -11,8 +11,9 @@ use crate::{base::Base, coord::Pos, sequence::Seq};
 ///
 /// # Coordinates and anchoring
 /// - `start` is the reference coordinate corresponding to the **first base** of `seq`.
-/// - `anchor` is the reference coordinate that the window was fetched *around* (e.g.
-///   the mutation position). This anchor is expected to lie within the window.
+/// - `anchor` is a **sequence-local 1-based position within `seq`** identifying the base (or
+///   anchoring point) that the window was fetched around. For SNVs this is typically the mutated
+///   reference base; for indels it may represent the left-anchored VCF position.
 ///
 /// With these fields, callers can map from reference coordinate → sequence index:
 /// `index = anchor - start` (after bounds checks).
@@ -45,8 +46,12 @@ pub struct ContextWindow<B: Base> {
     /// Reference coordinate corresponding to `seq[0]`.
     start: Pos,
 
-    /// Position in self.seq that this window is centered around (typically the
-    /// mutation position). Typically lies within the window
+    /// Sequence-local 1-based position within `seq` that the window is anchored around.
+    ///
+    /// This is **not** an external coordinate. It is a position within this window.
+    /// For example, `anchor == 1` refers to `seq[0]`.
+    ///
+    /// Expected invariant (when `seq` is non-empty): `1 <= anchor <= seq.len()`.
     anchor: Pos,
 
     /// Orientation of the stored sequence relative to the reference used to fetch it.
@@ -77,13 +82,25 @@ impl<B: Base> ContextWindow<B> {
         self.seq.is_empty()
     }
 
-    /// Coordinate in external sequence that corresponds to the end position. Defaults to start
+    /// Coordinate (1-based, inclusive) in external sequence that corresponds to the end position. Defaults to start
     /// position if sequence is empty
     pub fn end(&self) -> Pos {
         match self.is_empty() {
             true => self.start,
-            false => self.start.saturating_add(self.len()),
+            false => self.start.saturating_add(self.len() - 1usize),
         }
+    }
+
+    /// Get anchor position as a 0-based usize, or None if anchor position is greater than sequence
+    /// length
+    pub fn anchor_index0(&self) -> Option<usize> {
+        // anchor is Pos (1-based inside window)
+        let a = self.anchor.get();
+        if a == 0 {
+            return None;
+        } // should never happen
+        let idx0 = a - 1usize;
+        (idx0 < self.seq.len()).then_some(idx0)
     }
 }
 

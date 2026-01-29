@@ -1,4 +1,5 @@
 use crate::base::{Alphabet, Base, ChemClass, DnaBase, RnaBase};
+use crate::coord::Pos;
 use crate::error::{Error, Result};
 use core::fmt;
 
@@ -516,6 +517,37 @@ impl<B: Base> Seq<B> {
     pub fn as_slice(&self) -> &[B] {
         &self.seq
     }
+
+    // <- Formatters ->
+    ///  the sequence as a string, optionally highlighting a 0-based position.
+    ///
+    /// If `position` is `Some(i)` and `i < self.len()`, the base at `i` is wrapped
+    /// in square brackets like `[...]`. If `position` is out of range, no base is
+    /// highlighted.
+    pub fn format_with_highlight_index(&self, position: Option<usize>) -> String {
+        let mut out = String::new();
+
+        for (i, b) in self.as_slice().iter().enumerate() {
+            if position == Some(i) {
+                out.push('[');
+                out.push_str(&b.to_string());
+                out.push(']');
+            } else {
+                out.push_str(&b.to_string());
+            }
+        }
+
+        out
+    }
+
+    /// Highlight a base using a 1-based sequence-local [`Pos`].
+    ///
+    /// If the position is out of bounds, no base is highlighted.
+    pub fn format_with_highlight_pos(&self, pos: Option<Pos>) -> String {
+        let idx = pos.map(|position| position.as_0based_index());
+        self.format_with_highlight_index(idx)
+    }
+    // <- Constructors ->
 
     /// Parses and validates a sequence from a string slice.
     ///

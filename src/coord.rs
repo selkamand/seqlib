@@ -39,7 +39,12 @@ impl Pos {
         self.0.get()
     }
 
-    // Position Shifting
+    /// Return the position as a 0based index (e.g. for indexnig into a `Seq` object)
+    pub fn as_0based_index(&self) -> usize {
+        self.get().saturating_sub(1)
+    }
+
+    // <- Position Shifting ->
 
     /// Add an offset to this position.
     ///
