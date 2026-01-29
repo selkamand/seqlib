@@ -4,7 +4,7 @@
 
 use core::fmt;
 
-use crate::errors::SeqError;
+use crate::error::{Error, Result};
 
 /// A minimal interface for “a single nucleotide symbol” (DNA, RNA, or a future alphabet).
 ///
@@ -70,7 +70,7 @@ pub trait Base: Copy + Eq + fmt::Debug + fmt::Display {
     /// - input must be ASCII (bytes 0–127)
     /// - parsing is case-insensitive (both `b'a'` and `b'A'` work)
     /// - invalid input returns a `SeqError` describing what went wrong
-    fn try_from_ascii(b: u8) -> Result<Self, SeqError>;
+    fn try_from_ascii(b: u8) -> Result<Self>;
 
     /// Returns `true` if this symbol can represent more than one concrete nucleotide.
     ///
@@ -211,10 +211,10 @@ impl Base for DnaBase {
         }
     }
 
-    fn try_from_ascii(b: u8) -> Result<Self, SeqError> {
+    fn try_from_ascii(b: u8) -> Result<Self> {
         // If the byte is not ASCII, it cannot be a nucleotide symbol.
         if !b.is_ascii() {
-            return Err(SeqError::InvalidByte {
+            return Err(Error::InvalidByte {
                 alphabet: Alphabet::DNA,
                 invalid: b,
             });
@@ -236,7 +236,7 @@ impl Base for DnaBase {
             b'D' => Ok(DnaBase::D),
             b'H' => Ok(DnaBase::H),
             b'V' => Ok(DnaBase::V),
-            _ => Err(SeqError::InvalidCharacter {
+            _ => Err(Error::InvalidCharacter {
                 alphabet: Alphabet::DNA,
                 invalid: b as char,
             }),
@@ -318,9 +318,9 @@ impl fmt::Display for DnaBase {
 impl Base for RnaBase {
     const ALPHABET: Alphabet = Alphabet::RNA;
 
-    fn try_from_ascii(b: u8) -> Result<Self, SeqError> {
+    fn try_from_ascii(b: u8) -> Result<Self> {
         if !b.is_ascii() {
-            return Err(SeqError::InvalidByte {
+            return Err(Error::InvalidByte {
                 alphabet: Alphabet::RNA,
                 invalid: b,
             });
@@ -342,7 +342,7 @@ impl Base for RnaBase {
             b'D' => Ok(RnaBase::D),
             b'H' => Ok(RnaBase::H),
             b'V' => Ok(RnaBase::V),
-            _ => Err(SeqError::InvalidCharacter {
+            _ => Err(Error::InvalidCharacter {
                 alphabet: Alphabet::RNA,
                 invalid: b as char,
             }),

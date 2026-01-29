@@ -1,8 +1,7 @@
 use crate::base::Alphabet;
-use thiserror::Error;
 
-#[derive(Error, Debug)]
-pub enum SeqError {
+#[derive(thiserror::Error, Debug)]
+pub enum Error {
     #[error(
         "Invalid {alphabet} base: '{invalid}'. \
          Allowed symbols are standard bases plus IUPAC ambiguity codes for {alphabet}."
@@ -24,4 +23,9 @@ pub enum SeqError {
         end: usize,
         len: usize,
     },
+
+    #[error("Position must be 1-based so 0 is not a valid position")]
+    PositionIsZero,
 }
+
+pub type Result<T> = std::result::Result<T, Error>;

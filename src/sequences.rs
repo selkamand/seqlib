@@ -1,5 +1,5 @@
 use crate::base::{Alphabet, Base, ChemClass, DnaBase, RnaBase};
-use crate::errors::SeqError;
+use crate::error::{Error, Result};
 use core::fmt;
 
 /// A biological sequence with an associated alphabet (DNA/RNA).
@@ -381,9 +381,9 @@ impl<B: Base> Seq<B> {
     /// let sub = seq.subseq(1, 4).unwrap(); // bases 1,2,3
     /// assert_eq!(sub.to_string(), "CGT");
     /// ```
-    pub fn subseq(&self, start: usize, end: usize) -> Result<Seq<B>, SeqError> {
+    pub fn subseq(&self, start: usize, end: usize) -> Result<Seq<B>> {
         if start > end || end > self.len() {
-            return Err(SeqError::InvalidSlice {
+            return Err(Error::InvalidSlice {
                 start,
                 end,
                 len: self.len(),
@@ -395,9 +395,9 @@ impl<B: Base> Seq<B> {
         })
     }
 
-    pub fn subseq_in_place(&mut self, start: usize, end: usize) -> Result<(), SeqError> {
+    pub fn subseq_in_place(&mut self, start: usize, end: usize) -> Result<()> {
         if start > end || end > self.len() {
-            return Err(SeqError::InvalidSlice {
+            return Err(Error::InvalidSlice {
                 start,
                 end,
                 len: self.len(),
@@ -445,9 +445,9 @@ impl<B: Base> Seq<B> {
     /// let sub = seq.subseq_slice(1, 4).unwrap();
     /// assert_eq!(sub.len(), 3);
     /// ```
-    pub fn subseq_slice(&self, start: usize, end: usize) -> Result<&[B], SeqError> {
+    pub fn subseq_slice(&self, start: usize, end: usize) -> Result<&[B]> {
         if start > end || end > self.len() {
-            return Err(SeqError::InvalidSlice {
+            return Err(Error::InvalidSlice {
                 start,
                 end,
                 len: self.len(),
@@ -524,13 +524,13 @@ impl<B: Base> Seq<B> {
     ///
     /// # Errors
     ///
-    /// Returns a `SeqError` if any character is not valid for the alphabet implied by `B`.
+    /// Returns a `Error` if any character is not valid for the alphabet implied by `B`.
     ///
     /// # Notes
     ///
     /// - Parsing is byte-based (`&str` is interpreted as ASCII nucleotide symbols).
     /// - Lowercase letters are accepted if `try_from_ascii` is case-insensitive.
-    pub fn new(sequence: &str) -> Result<Self, SeqError> {
+    pub fn new(sequence: &str) -> Result<Self> {
         let mut seq = Vec::with_capacity(sequence.len());
         for &byte in sequence.as_bytes() {
             seq.push(B::try_from_ascii(byte)?);
