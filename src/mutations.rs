@@ -275,17 +275,18 @@ impl SmallMutationType {
     /// Classify a small variant based on reference and alternative allele lengths.
     ///
     /// Classification rules:
-    /// - If `altlen > reflen` → [`INSERTION`]
-    /// - If `altlen < reflen` → [`DELETION`]
+    /// - If `altlen > reflen` → [`SmallMutationType::INSERTION`]
+    /// - If `altlen < reflen` → [`SmallMutationType::DELETION`]
     /// - If lengths are equal:
-    ///   - `reflen == 1` → [`SNV`]
-    ///   - `reflen == 2` → [`DOUBLET`]
-    ///   - `reflen >= 3` → [`MNV`]
+    ///   - `reflen == 1` → [`SmallMutationType::SNV`]
+    ///   - `reflen == 2` → [`SmallMutationType::DOUBLET`]
+    ///   - `reflen >= 3` → [`SmallMutationType::MNV`]
+    ///
     ///
     /// # Notes
     /// - This function is purely *shape-based* and does not inspect sequence content.
     /// - A length of `0` is invalid for VCF alleles; this function currently maps
-    ///   `reflen == 0 && altlen == 0` to [`MNV`] and assumes such cases are rejected
+    ///   `reflen == 0 && altlen == 0` to [`SmallMutationType::MNV`] and assumes such cases are rejected
     ///   elsewhere.
     pub fn from_lengths(reflen: usize, altlen: usize) -> Self {
         match altlen.cmp(&reflen) {
@@ -382,15 +383,15 @@ mod tests {
     }
 
     #[test]
-    fn add_context_sets_context() {
+    fn set_context_sets_context() {
         let mut m = dna_mut("A", "G");
         assert_eq!(m.context, None);
 
-        m.add_context(dna("TCA"));
+        m.set_context(dna("TCA"));
         assert_eq!(m.context, Some(dna("TCA")));
 
         // overwrite
-        m.add_context(dna("AAA"));
+        m.set_context(dna("AAA"));
         assert_eq!(m.context, Some(dna("AAA")));
     }
 
