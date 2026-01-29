@@ -38,11 +38,77 @@ impl Pos {
     pub fn get(self) -> usize {
         self.0.get()
     }
+
+    // Position Shifting
+
+    /// Add an offset to this position.
+    ///
+    /// Returns `None` if the result would overflow `usize`.
+    pub fn checked_add(self, offset: usize) -> Option<Self> {
+        let v = self.get().checked_add(offset)?;
+        Pos::new(v).ok()
+    }
+
+    /// Add an offset, saturating at `Pos::MAX` on overflow.
+    pub fn saturating_add(self, offset: usize) -> Self {
+        let v = self.get().saturating_add(offset);
+        // `v` is never 0 here, so `new` cannot fail.
+        // But we still avoid unwrap by falling back to MAX defensively.
+        Pos::new(v).unwrap_or(Pos::MAX)
+    }
+
+    /// Subtract an offset, saturating at `Pos::MIN` (Position 1) on underflow.
+    pub fn saturating_sub(self, offset: usize) -> Self {
+        let v = self.get().saturating_sub(offset);
+        Pos::new(v).unwrap_or(Pos::MIN)
+    }
+
+    /// Add an offset to this position.
+    ///
+    /// # Errors
+    /// Returns [`Error::PositionOverflowAdd`] if `self + offset` cannot be represented
+    /// on this platform.
+    pub fn try_add(self, offset: usize) -> Result<Self> {
+        match self.get().checked_add(offset) {
+            Some(v) => Pos::new(v).map_err(|_| Error::PositionOverflowAdd {
+                lhs: self,
+                rhs: offset,
+                max: Pos::MAX,
+            }),
+            None => Err(Error::PositionOverflowAdd {
+                lhs: self,
+                rhs: offset,
+                max: Pos::MAX,
+            }),
+        }
+    }
+
+    /// Subtract an offset from this position.
+    ///
+    /// # Errors
+    /// Returns [`Error::PositionUnderflow`] if `self - offset` would be < 1.
+    pub fn try_sub(self, offset: usize) -> Result<Self> {
+        match self.get().checked_sub(offset) {
+            Some(v) => Pos::new(v).map_err(|_| Error::PositionUnderflow {
+                lhs: self,
+                rhs: offset,
+            }),
+            None => Err(Error::PositionUnderflow {
+                lhs: self,
+                rhs: offset,
+            }),
+        }
+    }
 }
 
 impl core::fmt::Display for Pos {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
         write!(f, "{}", self.get())
+    }
+}
+impl Default for Pos {
+    fn default() -> Self {
+        Pos::MIN
     }
 }
 
@@ -206,5 +272,64 @@ mod tests {
         let v: u64 = u64::MAX;
         let p = Pos::try_from(v).unwrap();
         assert_eq!(p.get() as u64, v);
+    }
+}
+
+#[cfg(test)]
+mod pos_arith_tests {
+    use super::*;
+
+    #[test]
+    fn try_add_ok() {
+        let p = Pos::new(10).unwrap();
+        let q = p.try_add(5).unwrap();
+        assert_eq!(q.get(), 15);
+    }
+
+    #[test]
+    fn try_sub_ok() {
+        let p = Pos::new(10).unwrap();
+        let q = p.try_sub(3).unwrap();
+        assert_eq!(q.get(), 7);
+    }
+
+    #[test]
+    fn try_sub_underflow_to_zero_errors() {
+        let p = Pos::new(1).unwrap();
+        let err = p.try_sub(1).unwrap_err();
+        match err {
+            Error::PositionUnderflow { lhs, rhs } => {
+                assert_eq!(lhs, p);
+                assert_eq!(rhs, 1);
+            }
+            other => panic!("expected PositionUnderflow, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn try_sub_underflow_below_zero_errors() {
+        let p = Pos::new(1).unwrap();
+        let err = p.try_sub(2).unwrap_err();
+        match err {
+            Error::PositionUnderflow { lhs, rhs } => {
+                assert_eq!(lhs, p);
+                assert_eq!(rhs, 2);
+            }
+            other => panic!("expected PositionUnderflow, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn try_add_overflow_errors() {
+        let p = Pos::MAX;
+        let err = p.try_add(1).unwrap_err();
+        match err {
+            Error::PositionOverflowAdd { lhs, rhs, max } => {
+                assert_eq!(lhs, p);
+                assert_eq!(rhs, 1);
+                assert_eq!(max, Pos::MAX);
+            }
+            other => panic!("expected PositionOverflowAdd, got {other:?}"),
+        }
     }
 }

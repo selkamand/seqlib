@@ -32,6 +32,12 @@ pub enum Error {
 
     #[error("position {value} cannot be represented on this platform. Max allowed position: {max}")]
     PositionOverflowU32 { value: u32, max: Pos },
+
+    #[error("position underflow: {lhs} - {rhs} would be < 1")]
+    PositionUnderflow { lhs: Pos, rhs: usize },
+
+    #[error("position overflow: {lhs} + {rhs} would exceed {max}")]
+    PositionOverflowAdd { lhs: Pos, rhs: usize, max: Pos },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;

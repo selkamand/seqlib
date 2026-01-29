@@ -1,4 +1,4 @@
-use crate::{base::Base, sequence::Seq};
+use crate::{base::Base, coord::Pos, sequence::Seq};
 
 /// A reference context window fetched around a mutation.
 ///
@@ -43,11 +43,11 @@ pub struct ContextWindow<B: Base> {
     seq: Seq<B>,
 
     /// Reference coordinate corresponding to `seq[0]`.
-    start: u64,
+    start: Pos,
 
-    /// Reference coordinate that this window is centered around (typically the
-    /// mutation position). Expected to lie within the window.
-    anchor: u64,
+    /// Position in self.seq that this window is centered around (typically the
+    /// mutation position). Typically lies within the window
+    anchor: Pos,
 
     /// Orientation of the stored sequence relative to the reference used to fetch it.
     orientation: Orientation,
@@ -55,16 +55,13 @@ pub struct ContextWindow<B: Base> {
 
 impl<B: Base> std::fmt::Display for ContextWindow<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let end = if self.seq.is_empty() {
-            self.start
-        } else {
-            self.start + self.seq.len() as u64 - 1
-        };
-
         write!(
             f,
             "Sequence: {} | from {}-{} (both 1-based) | Orientation: {}",
-            self.seq, self.start, end, self.orientation
+            self.seq,
+            self.start,
+            self.end(),
+            self.orientation
         )
     }
 }
@@ -74,9 +71,18 @@ impl<B: Base> ContextWindow<B> {
     pub fn len(&self) -> usize {
         self.seq.len()
     }
+
     /// Return true if the stored context window contains no bases.
     pub fn is_empty(&self) -> bool {
         self.seq.is_empty()
+    }
+
+    /// Return position of end (Returns Pos 1 when seq is empty)
+    pub fn end(&self) -> Pos {
+        match self.is_empty() {
+            true => Pos::MIN,
+            false => self.start.saturating_add(self.len()),
+        }
     }
 }
 
