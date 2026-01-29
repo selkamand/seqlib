@@ -1,4 +1,4 @@
-use seqlib::sequences::{DnaSeq, RnaSeq};
+use seqlib::sequence::{DnaSeq, RnaSeq};
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     // --- DNA ---

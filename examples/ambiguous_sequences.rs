@@ -7,8 +7,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     assert!(clean.all_unambiguous());
     assert!(ambiguous.any_ambiguous());
 
-    println!("Clean: {} (unambiguous)", clean);
-    println!("Ambiguous: {} (contains N)", ambiguous);
+    println!("Clean: {clean} (unambiguous)");
+    println!("Ambiguous: {ambiguous} (contains N)");
 
     Ok(())
 }
