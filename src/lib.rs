@@ -1,5 +1,5 @@
 pub mod base;
-pub mod contexts;
+pub mod context;
 pub mod error;
-pub mod mutations;
-pub mod sequences;
+pub mod mutation;
+pub mod sequence;

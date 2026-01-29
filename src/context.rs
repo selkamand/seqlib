@@ -12,13 +12,16 @@ pub struct ContextWindow<B: Base> {
 
 impl<B: Base> std::fmt::Display for ContextWindow<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let end = if self.seq.is_empty() {
+            self.start
+        } else {
+            self.start + self.seq.len() as u64 - 1
+        };
+
         write!(
             f,
             "Sequence: {} | from {}-{} (both 1-based) | Orientation: {}",
-            self.seq,
-            self.start,
-            self.start + self.seq.len() as u64,
-            self.orientation
+            self.seq, self.start, end, self.orientation
         )
     }
 }
