@@ -57,7 +57,7 @@ impl<B: Base> std::fmt::Display for ContextWindow<B> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "Sequence: {} | from {}-{} (both 1-based) | Orientation: {}",
+            "Sequence: {} | from {}-{} (both 1-based) in external sequence | Orientation: {}",
             self.seq,
             self.start,
             self.end(),
