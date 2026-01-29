@@ -1,6 +1,6 @@
-use crate::base::Alphabet;
+use crate::{base::Alphabet, coord::Pos};
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, PartialEq, Eq)]
 pub enum Error {
     #[error(
         "Invalid {alphabet} base: '{invalid}'. \
@@ -26,6 +26,12 @@ pub enum Error {
 
     #[error("Position must be 1-based so 0 is not a valid position")]
     PositionIsZero,
+
+    #[error("position {value} cannot be represented on this platform. Max allowed position: {max}")]
+    PositionOverflowU64 { value: u64, max: Pos },
+
+    #[error("position {value} cannot be represented on this platform. Max allowed position: {max}")]
+    PositionOverflowU32 { value: u32, max: Pos },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
