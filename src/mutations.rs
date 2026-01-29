@@ -12,6 +12,29 @@ pub type RnaSmallMutation = SmallMutation<RnaBase>;
 ///
 /// - `SmallMutation<DnaBase>` is DNA
 /// - `SmallMutation<RnaBase>` is RNA
+///
+/// ## Coordinate and allele semantics
+/// - `position` is **1-based** (VCF-style) and refers to the **start** position.
+/// - `reference` and `alternative` are stored **as provided** by the caller.
+///   No left/right trimming, normalization, or decomposition is performed.
+///
+/// ## Multi-allelic sites
+/// - `multiallelic` indicates that this mutation originated from a site with multiple ALT
+///   alleles (e.g. a VCF record with `ALT=A,C`). It is purely metadata for downstream
+///   handling; it does not change coordinate or allele semantics.
+///
+/// ## Filter / QC status (`pass`)
+/// - `pass` indicates whether the source record **passed upstream filtering**.
+///   In VCF terms this typically corresponds to the `FILTER` field being `PASS`
+///   (or `.` depending on your chosen convention).
+/// - `pass` is **metadata only**:
+///   - it does *not* imply biological validity,
+///   - it does *not* change classification (`SNV`/`INDEL`/etc),
+///   - and it should not be silently acted on by this type.
+///
+/// ## Context
+/// - `context` is optional sequence context (e.g. trinucleotide context) if already
+///   computed by the caller. This is commonly added later after reference lookup.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SmallMutation<B: Base> {
     chromosome: String,
@@ -19,6 +42,7 @@ pub struct SmallMutation<B: Base> {
     reference: Seq<B>,
     alternative: Seq<B>,
     multiallelic: bool,
+    pass: bool,
     context: Option<Seq<B>>,
 }
 
@@ -27,21 +51,22 @@ impl<B: Base> fmt::Display for SmallMutation<B> {
     /// Render a compact, human-readable representation of the mutation.
     ///
     /// Format:
-    /// `chrom:pos REF>ALT (delta: D; class: C; multiallelic: M)`
+    /// `chrom:pos REF>ALT (delta: D; class: C; multiallelic: M; pass: P)`
     ///
     /// Intended for logging / CLI output rather than stable serialization.
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         // Use the write! macro to format the output.
         write!(
             f,
-            "{}:{} {}>{} (delta: {}; class: {}; multiallelic:{})",
+            "{}:{} {}>{} (delta: {}; class: {}; multiallelic:{}; pass:{})",
             self.chromosome,
             self.position,
             self.reference,
             self.alternative,
             self.delta(),
             self.class(),
-            self.multiallelic
+            self.multiallelic,
+            self.pass
         )
     }
 }
@@ -49,16 +74,26 @@ impl<B: Base> fmt::Display for SmallMutation<B> {
 /// Construct a new [`SmallMutation`].
 ///
 /// This constructor does **not** attempt to validate biological correctness beyond
-/// what is already guaranteed by [`DnaSeq`] (i.e. sequences are valid DNA).
+/// what is already guaranteed by [`Seq<B>`] (i.e. sequences conform to the alphabet).
 ///
 /// In particular, this type:
 /// - assumes `position` is **1-based** (VCF-style coordinates)
 /// - stores `reference` and `alternative` as provided (no trimming/normalization)
-/// - treats `multiallelic` as an external flag (e.g. derived from a VCF record)
+/// - treats `multiallelic` as an external flag (e.g. derived from a multi-ALT record)
+/// - treats `pass` as an external flag describing upstream filtering/QC outcome
 /// - accepts an optional `context` sequence if the caller has already computed it
 ///
 /// If you need allele normalization (left/right trimming of shared prefix/suffix),
 /// do it before constructing this type.
+///
+/// # Parameters
+/// - `chromosome`: reference sequence / contig name (e.g. `"chr1"`)
+/// - `position`: 1-based start coordinate
+/// - `reference`: reference allele sequence
+/// - `alternative`: alternative allele sequence
+/// - `multiallelic`: whether the originating site had multiple ALT alleles
+/// - `pass`: whether the originating record passed upstream filters/QC
+/// - `context`: optional context sequence (e.g. trinucleotide context)
 impl<B: Base> SmallMutation<B> {
     pub fn new(
         chromosome: String,
@@ -66,6 +101,7 @@ impl<B: Base> SmallMutation<B> {
         reference: Seq<B>,
         alternative: Seq<B>,
         multiallelic: bool,
+        pass: bool,
         context: Option<Seq<B>>,
     ) -> Self {
         Self {
@@ -74,18 +110,142 @@ impl<B: Base> SmallMutation<B> {
             reference,
             alternative,
             multiallelic,
+            pass,
             context,
         }
     }
 
-    /// Attach a sequence context to this mutation.
+    // --- Accessors (read-only) ---
+
+    /// Returns the chromosome / contig name (e.g. `"chr1"`).
+    pub fn chromosome(&self) -> &str {
+        &self.chromosome
+    }
+
+    /// Returns the 1-based start position of the mutation.
     ///
-    /// This is intended for cases where context is computed later (e.g. after
-    /// fetching flanking bases from a reference genome).
+    /// This follows VCF conventions: the coordinate refers to the first base of `reference`.
+    pub fn position(&self) -> u64 {
+        self.position
+    }
+
+    /// Returns the reference allele sequence.
+    pub fn reference(&self) -> &Seq<B> {
+        &self.reference
+    }
+
+    /// Returns the alternative allele sequence.
+    pub fn alternative(&self) -> &Seq<B> {
+        &self.alternative
+    }
+
+    /// Returns whether this mutation originated from a multi-allelic site.
+    ///
+    /// This is metadata (e.g. a VCF record with multiple ALT alleles) and does not change
+    /// coordinate or allele semantics.
+    pub fn multiallelic(&self) -> bool {
+        self.multiallelic
+    }
+
+    /// Returns whether this mutation passed upstream filtering/QC.
+    ///
+    /// In VCF terms, this commonly corresponds to the `FILTER` field being `PASS`
+    /// (and sometimes `.` depending on the caller’s convention).
+    ///
+    /// This is metadata only; downstream code should decide how to handle non-passing
+    /// mutations explicitly.
+    pub fn pass(&self) -> bool {
+        self.pass
+    }
+
+    /// Returns the optional sequence context for this mutation.
+    ///
+    /// This is typically used for contexts like trinucleotide sequence around the
+    /// mutation site (computed later using a reference genome).
+    ///
+    /// Returns `None` if no context has been attached.
+    pub fn context(&self) -> Option<&Seq<B>> {
+        self.context.as_ref()
+    }
+
+    // --- Context mutation (write) ---
+
+    /// Set (or overwrite) the context sequence for this mutation.
+    ///
+    /// This is intended for pipelines where the mutation is parsed first and context
+    /// is computed later (e.g. reference lookup).
     ///
     /// This overwrites any existing context.
-    pub fn add_context(&mut self, seq: Seq<B>) {
-        self.context = Some(seq)
+    pub fn set_context(&mut self, seq: Seq<B>) {
+        self.context = Some(seq);
+    }
+
+    /// Clear any attached context sequence.
+    pub fn clear_context(&mut self) {
+        self.context = None;
+    }
+
+    // --- Computed Properties (read-only) ---
+
+    /// Return the length of the reference allele in bases.
+    ///
+    /// This is a convenience wrapper around [`Seq::len`].
+    pub fn reflen(&self) -> usize {
+        self.reference.len()
+    }
+
+    /// Return the length of the alternative allele in bases.
+    ///
+    /// This is a convenience wrapper around [`Seq::len`].
+    pub fn altlen(&self) -> usize {
+        self.alternative.len()
+    }
+    /// Return the signed size change implied by this mutation.
+    ///
+    /// Defined as:
+    /// ```text
+    /// delta = alt_length - ref_length
+    /// ```
+    ///
+    /// Interpretation:
+    /// - `delta == 0` → equal-length substitution (SNV/DOUBLET/MNV)
+    /// - `delta > 0`  → insertion (net gain of bases)
+    /// - `delta < 0`  → deletion (net loss of bases)
+    ///
+    /// This is purely length-based and does not depend on allele normalization.
+    pub fn delta(&self) -> i64 {
+        self.altlen() as i64 - self.reflen() as i64
+    }
+    /// Return the mutation class derived from allele lengths.
+    ///
+    /// This is computed on demand using [`SmallMutationType::from_lengths`]
+    /// and is therefore always consistent with the stored alleles.
+    pub fn class(&self) -> SmallMutationType {
+        SmallMutationType::from_lengths(self.reflen(), self.altlen())
+    }
+
+    /// Compute transition/transversion classification for this mutation.
+    ///
+    /// This classification is only defined for **single-nucleotide substitutions**
+    /// ([`SmallMutationType::SNV`]). For all other mutation types, this returns `None`.
+    ///
+    /// This method is conservative in the presence of ambiguity:
+    /// - If either base has ambiguous chemical class (e.g. `N`, `S`, `W`), returns `None`.
+    ///
+    /// # Returns
+    /// - `Some(TiTv::Transition)` for A↔G or C↔T substitutions (including unambiguous
+    ///   IUPAC codes that resolve to a single chemical class).
+    /// - `Some(TiTv::Transversion)` for purine↔pyrimidine substitutions.
+    /// - `None` if not an SNV or if ambiguity prevents a confident classification.
+    pub fn titv(&self) -> Option<TiTv> {
+        if self.class() != SmallMutationType::SNV {
+            return None;
+        }
+
+        let r = self.reference.as_slice().first()?;
+        let a = self.alternative.as_slice().first()?;
+
+        TiTv::from_chemical_class(r.chemical_class(), a.chemical_class())
     }
 }
 
@@ -169,69 +329,6 @@ impl TiTv {
     }
 }
 
-impl<B: Base> SmallMutation<B> {
-    /// Return the length of the reference allele in bases.
-    ///
-    /// This is a convenience wrapper around [`Seq::len`].
-    pub fn reflen(&self) -> usize {
-        self.reference.len()
-    }
-
-    /// Return the length of the alternative allele in bases.
-    ///
-    /// This is a convenience wrapper around [`Seq::len`].
-    pub fn altlen(&self) -> usize {
-        self.alternative.len()
-    }
-    /// Return the signed size change implied by this mutation.
-    ///
-    /// Defined as:
-    /// ```text
-    /// delta = alt_length - ref_length
-    /// ```
-    ///
-    /// Interpretation:
-    /// - `delta == 0` → equal-length substitution (SNV/DOUBLET/MNV)
-    /// - `delta > 0`  → insertion (net gain of bases)
-    /// - `delta < 0`  → deletion (net loss of bases)
-    ///
-    /// This is purely length-based and does not depend on allele normalization.
-    pub fn delta(&self) -> i64 {
-        self.altlen() as i64 - self.reflen() as i64
-    }
-    /// Return the mutation class derived from allele lengths.
-    ///
-    /// This is computed on demand using [`SmallMutationType::from_lengths`]
-    /// and is therefore always consistent with the stored alleles.
-    pub fn class(&self) -> SmallMutationType {
-        SmallMutationType::from_lengths(self.reflen(), self.altlen())
-    }
-
-    /// Compute transition/transversion classification for this mutation.
-    ///
-    /// This classification is only defined for **single-nucleotide substitutions**
-    /// ([`SmallMutationType::SNV`]). For all other mutation types, this returns `None`.
-    ///
-    /// This method is conservative in the presence of ambiguity:
-    /// - If either base has ambiguous chemical class (e.g. `N`, `S`, `W`), returns `None`.
-    ///
-    /// # Returns
-    /// - `Some(TiTv::Transition)` for A↔G or C↔T substitutions (including unambiguous
-    ///   IUPAC codes that resolve to a single chemical class).
-    /// - `Some(TiTv::Transversion)` for purine↔pyrimidine substitutions.
-    /// - `None` if not an SNV or if ambiguity prevents a confident classification.
-    pub fn titv(&self) -> Option<TiTv> {
-        if self.class() != SmallMutationType::SNV {
-            return None;
-        }
-
-        let r = self.reference.as_slice().first()?;
-        let a = self.alternative.as_slice().first()?;
-
-        TiTv::from_chemical_class(r.chemical_class(), a.chemical_class())
-    }
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -255,6 +352,7 @@ mod tests {
             dna(ref_allele),
             dna(alt_allele),
             false,
+            true,
             None,
         )
     }
@@ -266,6 +364,7 @@ mod tests {
             rna(ref_allele),
             rna(alt_allele),
             false,
+            true,
             None,
         )
     }
