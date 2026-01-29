@@ -77,10 +77,11 @@ impl<B: Base> ContextWindow<B> {
         self.seq.is_empty()
     }
 
-    /// Return position of end (Returns Pos 1 when seq is empty)
+    /// Coordinate in external sequence that corresponds to the end position. Defaults to start
+    /// position if sequence is empty
     pub fn end(&self) -> Pos {
         match self.is_empty() {
-            true => Pos::MIN,
+            true => self.start,
             false => self.start.saturating_add(self.len()),
         }
     }
