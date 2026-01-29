@@ -49,6 +49,16 @@ impl core::fmt::Display for Pos {
 impl TryFrom<u64> for Pos {
     type Error = Error;
 
+    /// Fallibly convert a `u64` into a 1-based [`Pos`].
+    ///
+    /// This conversion is **platform dependent** because [`Pos`] stores a `NonZeroUsize`.
+    /// On targets where `usize` is smaller than `u64` (e.g. 32-bit or 16-bit), large
+    /// values may not be representable and will be rejected.
+    ///
+    /// # Errors
+    /// - [`Error::PositionIsZero`] if `value == 0`.
+    /// - [`Error::PositionOverflowU64`] if `value` cannot be represented as a `usize`
+    ///   on the current platform.
     fn try_from(value: u64) -> Result<Self> {
         if value == 0 {
             return Err(Error::PositionIsZero);
@@ -68,6 +78,15 @@ impl TryFrom<u64> for Pos {
 impl TryFrom<u32> for Pos {
     type Error = Error;
 
+    /// Fallibly convert a `u32` into a 1-based [`Pos`].
+    ///
+    /// This conversion is always safe on 32-bit and 64-bit targets, but may fail on
+    /// narrower targets (e.g. 16-bit) where `usize::MAX < u32::MAX`.
+    ///
+    /// # Errors
+    /// - [`Error::PositionIsZero`] if `value == 0`.
+    /// - [`Error::PositionOverflowU32`] if `value` cannot be represented as a `usize`
+    ///   on the current platform.
     fn try_from(value: u32) -> Result<Self> {
         if value == 0 {
             return Err(Error::PositionIsZero);
