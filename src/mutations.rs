@@ -143,7 +143,7 @@ impl<B: Base> SmallMutation<B> {
     ///
     /// This is metadata (e.g. a VCF record with multiple ALT alleles) and does not change
     /// coordinate or allele semantics.
-    pub fn multiallelic(&self) -> bool {
+    pub fn is_multiallelic(&self) -> bool {
         self.multiallelic
     }
 
@@ -154,7 +154,7 @@ impl<B: Base> SmallMutation<B> {
     ///
     /// This is metadata only; downstream code should decide how to handle non-passing
     /// mutations explicitly.
-    pub fn pass(&self) -> bool {
+    pub fn is_pass(&self) -> bool {
         self.pass
     }
 
