@@ -41,7 +41,7 @@ impl<B: Base> fmt::Display for Seq<B> {
 /// # Examples
 ///
 /// ```rust
-/// use seqlib::sequences::DnaSeq;
+/// use seqlib::sequence::DnaSeq;
 ///
 /// let seq = DnaSeq::new("ACGTN").unwrap();
 /// println!("{}", seq);
@@ -65,7 +65,7 @@ pub type DnaSeq = Seq<DnaBase>;
 /// # Examples
 ///
 /// ```rust
-/// use seqlib::sequences::RnaSeq;
+/// use seqlib::sequence::RnaSeq;
 ///
 /// let seq = RnaSeq::new("ACGUN").unwrap();
 /// println!("{}", seq);
@@ -179,7 +179,7 @@ impl<B: Base> Seq<B> {
     /// # Examples
     ///
     /// ```
-    /// use seqlib::sequences::DnaSeq;
+    /// use seqlib::sequence::DnaSeq;
     ///
     /// let seq = DnaSeq::new("ACGT").unwrap();
     /// assert_eq!(seq.reverse().to_string(), "TGCA");
@@ -251,7 +251,7 @@ impl<B: Base> Seq<B> {
     /// ## Examples
     ///
     /// ```rust
-    /// use seqlib::sequences::DnaSeq;
+    /// use seqlib::sequence::DnaSeq;
     ///
     /// // A concrete, unambiguous palindrome
     /// assert!(DnaSeq::new("GAATTC").unwrap().is_palindromic());
@@ -375,7 +375,7 @@ impl<B: Base> Seq<B> {
     /// # Examples
     ///
     /// ```rust
-    /// use seqlib::sequences::DnaSeq;
+    /// use seqlib::sequence::DnaSeq;
     ///
     /// let seq = DnaSeq::new("ACGTAC").unwrap();
     /// let sub = seq.subseq(1, 4).unwrap(); // bases 1,2,3
@@ -439,7 +439,7 @@ impl<B: Base> Seq<B> {
     /// # Examples
     ///
     /// ```rust
-    /// use seqlib::sequences::DnaSeq;
+    /// use seqlib::sequence::DnaSeq;
     ///
     /// let seq = DnaSeq::new("ACGTAC").unwrap();
     /// let sub = seq.subseq_slice(1, 4).unwrap();
@@ -505,7 +505,7 @@ impl<B: Base> Seq<B> {
     /// ## Examples
     ///
     /// ```rust
-    /// use seqlib::sequences::DnaSeq;
+    /// use seqlib::sequence::DnaSeq;
     /// use seqlib::base::Base;
     /// let seq = DnaSeq::new("ACGT").unwrap();
     /// let bases = seq.as_slice();
