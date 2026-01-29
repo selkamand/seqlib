@@ -1,6 +1,4 @@
-use crate::error::{Error, Result};
 use crate::{base::Base, sequence::Seq};
-use std::num::NonZeroUsize;
 
 /// A reference context window fetched around a mutation.
 ///
