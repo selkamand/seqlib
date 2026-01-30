@@ -29,11 +29,6 @@ use crate::{base::Base, coord::Pos, sequence::Seq};
 /// signatures (e.g. pyrimidine-centering for SBS96). Downstream code should derive
 /// normalized k-mers from the stored window as required.
 ///
-/// # Invariants (expected by downstream classification)
-/// - `start` and `anchor` are in the same coordinate system as the mutation being annotated.
-/// - The window should be large enough for intended k-mer extraction (e.g. at least
-///   3 bases for trinucleotide context).
-/// - The anchor should be within the window bounds.
 ///
 /// # Display
 /// The [`std::fmt::Display`] implementation renders a short provenance string useful
@@ -49,9 +44,8 @@ pub struct ContextWindow<B: Base> {
     /// Sequence-local 1-based position within `seq` that the window is anchored around.
     ///
     /// This is **not** an external coordinate. It is a position within this window.
-    /// For example, `anchor == 1` refers to `seq[0]`.
+    /// For example, `anchor of Pos(1) refers to `seq[0]`.
     ///
-    /// Expected invariant (when `seq` is non-empty): `1 <= anchor <= seq.len()`.
     anchor: Pos,
 
     /// Orientation of the stored sequence relative to the reference used to fetch it.
