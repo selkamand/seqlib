@@ -33,9 +33,6 @@ pub type RnaSmallMutation = SmallMutation<RnaBase>;
 ///   - it does *not* change classification (`SNV`/`INDEL`/etc),
 ///   - and it should not be silently acted on by this type.
 ///
-/// ## Context
-/// - `context` is optional sequence context (e.g. trinucleotide context) if already
-///   computed by the caller. This is commonly added later after reference lookup.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SmallMutation<B: Base> {
     chromosome: String,
@@ -44,7 +41,6 @@ pub struct SmallMutation<B: Base> {
     alternative: Seq<B>,
     multiallelic: bool,
     pass: bool,
-    context: Option<Seq<B>>,
 }
 
 // Implement the `fmt::Display` trait for `Point`.
@@ -103,7 +99,6 @@ impl<B: Base> SmallMutation<B> {
         alternative: Seq<B>,
         multiallelic: bool,
         pass: bool,
-        context: Option<Seq<B>>,
     ) -> Self {
         Self {
             chromosome,
@@ -112,7 +107,6 @@ impl<B: Base> SmallMutation<B> {
             alternative,
             multiallelic,
             pass,
-            context,
         }
     }
 
@@ -157,33 +151,6 @@ impl<B: Base> SmallMutation<B> {
     /// mutations explicitly.
     pub fn is_pass(&self) -> bool {
         self.pass
-    }
-
-    /// Returns the optional sequence context for this mutation.
-    ///
-    /// This is typically used for contexts like trinucleotide sequence around the
-    /// mutation site (computed later using a reference genome).
-    ///
-    /// Returns `None` if no context has been attached.
-    pub fn context(&self) -> Option<&Seq<B>> {
-        self.context.as_ref()
-    }
-
-    // --- Context mutation (write) ---
-
-    /// Set (or overwrite) the context sequence for this mutation.
-    ///
-    /// This is intended for pipelines where the mutation is parsed first and context
-    /// is computed later (e.g. reference lookup).
-    ///
-    /// This overwrites any existing context.
-    pub fn set_context(&mut self, seq: Seq<B>) {
-        self.context = Some(seq);
-    }
-
-    /// Clear any attached context sequence.
-    pub fn clear_context(&mut self) {
-        self.context = None;
     }
 
     // --- Computed Properties (read-only) ---
@@ -355,7 +322,6 @@ mod tests {
             dna(alt_allele),
             false,
             true,
-            None,
         )
     }
 
@@ -367,7 +333,6 @@ mod tests {
             rna(alt_allele),
             false,
             true,
-            None,
         )
     }
 
@@ -383,21 +348,7 @@ mod tests {
         assert_eq!(m.titv(), Some(TiTv::Transition));
     }
 
-    #[test]
-    fn set_context_sets_context() {
-        let mut m = dna_mut("A", "G");
-        assert_eq!(m.context, None);
-
-        m.set_context(dna("TCA"));
-        assert_eq!(m.context, Some(dna("TCA")));
-
-        // overwrite
-        m.set_context(dna("AAA"));
-        assert_eq!(m.context, Some(dna("AAA")));
-    }
-
     // --- SmallMutationType::from_lengths ---
-
     #[test]
     fn from_lengths_classifies_equal_length_substitutions() {
         assert_eq!(
