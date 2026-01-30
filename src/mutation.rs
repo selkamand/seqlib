@@ -2,6 +2,7 @@ use core::fmt;
 
 use crate::{
     base::{Base, ChemClass, DnaBase, RnaBase},
+    coord::Pos,
     sequence::Seq,
 };
 
@@ -38,7 +39,7 @@ pub type RnaSmallMutation = SmallMutation<RnaBase>;
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SmallMutation<B: Base> {
     chromosome: String,
-    position: u64, // 1-based position (start)
+    position: Pos, // 1-based position (start)
     reference: Seq<B>,
     alternative: Seq<B>,
     multiallelic: bool,
@@ -97,7 +98,7 @@ impl<B: Base> SmallMutation<B> {
     /// - `context`: optional context sequence (e.g. trinucleotide context)
     pub fn new(
         chromosome: String,
-        position: u64,
+        position: Pos,
         reference: Seq<B>,
         alternative: Seq<B>,
         multiallelic: bool,
@@ -125,7 +126,7 @@ impl<B: Base> SmallMutation<B> {
     /// Returns the 1-based start position of the mutation.
     ///
     /// This follows VCF conventions: the coordinate refers to the first base of `reference`.
-    pub fn position(&self) -> u64 {
+    pub fn position(&self) -> Pos {
         self.position
     }
 
@@ -349,7 +350,7 @@ mod tests {
     fn dna_mut(ref_allele: &str, alt_allele: &str) -> DnaSmallMutation {
         SmallMutation::new(
             "chr1".to_string(),
-            123,
+            Pos::new(123).unwrap(),
             dna(ref_allele),
             dna(alt_allele),
             false,
@@ -361,7 +362,7 @@ mod tests {
     fn rna_mut(ref_allele: &str, alt_allele: &str) -> RnaSmallMutation {
         SmallMutation::new(
             "tx1".to_string(),
-            7,
+            Pos::new(7).unwrap(),
             rna(ref_allele),
             rna(alt_allele),
             false,
