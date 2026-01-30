@@ -1,5 +1,5 @@
 use crate::base::{Alphabet, Base, ChemClass, DnaBase, RnaBase};
-use crate::coord::Pos;
+use crate::coord::{Pos, Region};
 use crate::error::{Error, Result};
 use core::fmt;
 
@@ -290,6 +290,26 @@ impl<B: Base> Seq<B> {
         }
         true
     }
+
+    pub fn max_pos(&self) -> Pos {
+        Pos::new(self.len()).unwrap_or_default()
+    }
+
+    /// Does region span a range that exists in this sequence. If sequence is empty - by definition region can Note be
+    /// valid
+    pub fn is_region_valid(&self, region: &Region) -> bool {
+        match self.is_empty() {
+            true => false,
+            false => region.end() < self.max_pos(),
+        }
+    }
+
+    /// Does the sequence contain a particular position, or does it fall outside of the sequence
+    /// length
+    pub fn sequence_contains_position(&self, pos: Pos) -> bool {
+        pos <= self.max_pos()
+    }
+
     /// Returns `true` if the middle base of the sequence is a pyrimidine.
     ///
     /// This is a convenience predicate commonly used for motif / context logic.
@@ -546,6 +566,28 @@ impl<B: Base> Seq<B> {
     pub fn format_with_highlight_pos(&self, pos: Option<Pos>) -> String {
         let idx = pos.map(|position| position.as_0based_index());
         self.format_with_highlight_index(idx)
+    }
+
+    /// Highlight a series of bases using a region. If region end falls outside of sequence length
+    /// it will be annotated with ]>EndPosition
+    pub fn format_with_highlight_region(&self, region: Option<Region>) -> String {
+        if let Some(reg) = region {
+            let (start, end) = reg.as_0based_indices();
+            let mut s = self.to_string();
+
+            if self.sequence_contains_position(reg.start()) {
+                s.insert(start, '[');
+            }
+
+            if self.sequence_contains_position(reg.end()) {
+                s.insert(end + 1, ']');
+            } else if !self.is_empty() {
+                s.push_str(&format!("{}{}", "]>", reg.end()));
+            };
+            s
+        } else {
+            self.to_string()
+        }
     }
     // <- Constructors ->
 

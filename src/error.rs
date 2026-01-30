@@ -38,6 +38,9 @@ pub enum Error {
 
     #[error("position overflow: {lhs} + {rhs} would exceed {max}")]
     PositionOverflowAdd { lhs: Pos, rhs: usize, max: Pos },
+
+    #[error("End position of range: [end] cannot be less than start position [start]")]
+    RangeEndTooSmall { start: Pos, end: Pos },
 }
 
 pub type Result<T> = std::result::Result<T, Error>;
