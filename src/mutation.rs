@@ -2,6 +2,7 @@ use core::fmt;
 
 use crate::{
     base::{Base, ChemClass, DnaBase, RnaBase},
+    context::ContextWindow,
     coord::Pos,
     sequence::Seq,
 };
@@ -43,7 +44,7 @@ pub struct SmallMutation<B: Base> {
     pass: bool,
 }
 
-// Implement the `fmt::Display` trait for `Point`.
+// Implement the `fmt::Display` trait for `SmallMutation`.
 impl<B: Base> fmt::Display for SmallMutation<B> {
     /// Render a compact, human-readable representation of the mutation.
     ///
@@ -295,6 +296,68 @@ impl TiTv {
             (ChemClass::Pyrimidine, ChemClass::Purine) => Some(TiTv::Transversion),
             _ => None, // If either chemical class is ambiguous, return None
         }
+    }
+}
+
+/// A mutation annotated with reference sequence around it
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct MutationWithContext<B: Base> {
+    mutation: SmallMutation<B>,
+    context: Option<ContextWindow<B>>,
+}
+
+impl<B: Base> std::fmt::Display for MutationWithContext<B> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "-- Mutation --")?;
+        writeln!(f, "{}", self.mutation)?;
+        writeln!(f)?;
+        writeln!(f, "-- Context --")?;
+
+        match self.context.as_ref() {
+            Some(ctx) => write!(f, "{ctx}"),
+            None => write!(f, "No context"),
+        }
+    }
+}
+
+impl<B: Base> MutationWithContext<B> {
+    // < Constructor >
+
+    /// Construct a new MutationWithContext object
+    pub fn new(mutation: SmallMutation<B>, context: Option<ContextWindow<B>>) -> Self {
+        Self { mutation, context }
+    }
+
+    // < Getters >
+    pub fn with_context(mut self, context: ContextWindow<B>) -> Self {
+        self.context = Some(context);
+        self
+    }
+
+    pub fn mutation(&self) -> &SmallMutation<B> {
+        &self.mutation
+    }
+
+    pub fn context(&self) -> Option<&ContextWindow<B>> {
+        self.context.as_ref()
+    }
+
+    pub fn context_mut(&mut self) -> Option<&mut ContextWindow<B>> {
+        self.context.as_mut()
+    }
+
+    pub fn has_context(&self) -> bool {
+        self.context.is_some()
+    }
+    pub fn ref_trinuc(&self) -> Option<&[B]> {
+        self.context.as_ref()?.kmer_centered_on_anchor(3)
+    }
+
+    pub fn ref_pentanuc(&self) -> Option<&[B]> {
+        if self.mutation.class() != SmallMutationType::SNV {
+            return None;
+        }
+        self.context.as_ref()?.kmer_centered_on_anchor(5)
     }
 }
 

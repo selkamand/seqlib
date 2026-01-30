@@ -80,6 +80,21 @@ pub type RnaSeq = Seq<RnaBase>;
 
 // Other functions we can run on Seq
 impl<B: Base> Seq<B> {
+    /// Safe indexing; returns None if out of bounds.
+    pub fn get(&self, idx: usize) -> Option<&B> {
+        self.as_slice().get(idx)
+    }
+
+    /// Safe mutable indexing, if Seq is mutable internally.
+    pub fn get_mut(&mut self, idx: usize) -> Option<&mut B> {
+        self.as_mut_slice().get_mut(idx)
+    }
+
+    /// Borrow as a mutable slice, if applicable.
+    pub fn as_mut_slice(&mut self) -> &mut [B] {
+        &mut self.seq
+    }
+
     /// Returns the number of bases in the sequence.
     pub fn len(&self) -> usize {
         self.seq.len()
