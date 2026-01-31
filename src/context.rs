@@ -169,6 +169,28 @@ impl<B: Base> ContextWindow<B> {
         // subseq_slice returns Result<&[B]>; convert to Option
         self.seq.subseq_slice(start, end).ok()
     }
+
+    /// Construct a new `ContextWindow`.
+    ///
+    /// This constructor performs **no validation** of coordinate or anchoring
+    /// semantics. In particular, it does not check that:
+    ///
+    /// - `anchor` lies within the stored sequence
+    /// - the window is correctly anchored to a mutation position
+    ///
+    /// Methods that depend on these invariants return `Option` to signal when they
+    /// cannot be satisfied.
+    ///
+    /// Callers that require stronger guarantees should validate these conditions
+    /// externally or provide a checked constructor.
+    pub fn new(seq: Seq<B>, start: Pos, anchor: Pos, orientation: Orientation) -> Self {
+        Self {
+            seq,
+            start,
+            anchor,
+            orientation,
+        }
+    }
 }
 
 /// Orientation of a stored context window.
