@@ -1,3 +1,56 @@
+//! Reference sequence context around mutations.
+//!
+//! This module defines [`ContextWindow`], a lightweight container for a stretch of
+//! reference sequence fetched around a genomic position of interest (typically a mutation).
+//!
+//! ## Motivation
+//!
+//! Many downstream analyses classify mutations based not only on the alleles involved,
+//! but also on the **local reference context** surrounding them:
+//!
+//! - trinucleotide and pentanucleotide contexts for SBS-style mutational signatures
+//! - longer flanking sequence for indel classification
+//! - local properties such as palindromicity or repeat structure
+//!
+//! Fetching reference sequence from disk (e.g. FASTA) is often expensive and
+//! side-effectful. `ContextWindow` exists to **decouple reference retrieval from
+//! classification**, allowing callers to fetch a sufficiently large window *once*
+//! and reuse it for multiple context-derived queries.
+//!
+//! ## Design principles
+//!
+//! - **Read-only, side-effect free**: `ContextWindow` does not perform I/O or mutation.
+//! - **Anchor-based**: all derived contexts are expressed relative to a single
+//!   sequence-local anchor position.
+//! - **Generic over alphabet**: works for DNA, RNA, or future nucleotide alphabets.
+//! - **Conservative semantics**: methods return `Option` when invariants (such as
+//!   sufficient flanking sequence) are not satisfied, rather than guessing.
+//!
+//! ## What this module does *not* do
+//!
+//! - It does not validate that a window is biologically consistent with a mutation.
+//! - It does not normalize strand orientation or perform reverse complementation.
+//! - It does not classify mutations directly.
+//!
+//! These responsibilities are intentionally left to higher-level code (e.g.
+//! mutation annotation or signature classification layers).
+//!
+//! ## Typical usage
+//!
+//! A common pattern is:
+//!
+//! 1. Fetch a reference window around a mutation from an external source (FASTA).
+//! 2. Construct a [`ContextWindow`] with an appropriate anchor.
+//! 3. Derive k-mers or local properties from the window as needed.
+//!
+//! ```text
+//! FASTA fetch (external) → ContextWindow → k-mer / context logic
+//! ```
+//!
+//! This separation keeps `seqlib` focused on **correct representation and safe
+//! manipulation** of biological sequences.
+
+
 use crate::{base::Base, coord::Pos, sequence::Seq};
 
 /// A reference context window fetched around a mutation.
