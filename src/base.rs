@@ -212,35 +212,17 @@ impl Base for DnaBase {
     }
 
     fn try_from_ascii(b: u8) -> Result<Self> {
-        // If the byte is not ASCII, it cannot be a nucleotide symbol.
         if !b.is_ascii() {
             return Err(Error::InvalidByte {
-                alphabet: Alphabet::DNA,
+                alphabet: Self::ALPHABET,
                 invalid: b,
             });
         }
 
-        match b.to_ascii_uppercase() {
-            b'A' => Ok(DnaBase::A),
-            b'C' => Ok(DnaBase::C),
-            b'G' => Ok(DnaBase::G),
-            b'T' => Ok(DnaBase::T),
-            b'N' => Ok(DnaBase::N),
-            b'R' => Ok(DnaBase::R),
-            b'Y' => Ok(DnaBase::Y),
-            b'S' => Ok(DnaBase::S),
-            b'W' => Ok(DnaBase::W),
-            b'K' => Ok(DnaBase::K),
-            b'M' => Ok(DnaBase::M),
-            b'B' => Ok(DnaBase::B),
-            b'D' => Ok(DnaBase::D),
-            b'H' => Ok(DnaBase::H),
-            b'V' => Ok(DnaBase::V),
-            _ => Err(Error::InvalidCharacter {
-                alphabet: Alphabet::DNA,
-                invalid: b as char,
-            }),
-        }
+        Self::from_ascii_const(b).ok_or(Error::InvalidCharacter {
+            alphabet: Self::ALPHABET,
+            invalid: b as char,
+        })
     }
 
     fn to_ascii(self) -> u8 {
@@ -308,6 +290,34 @@ impl Base for DnaBase {
     }
 }
 
+impl DnaBase {
+    /// Parse a single ASCII byte into a DNA base (A,C,G,T plus IUPAC codes),
+    /// case-insensitive.
+    ///
+    /// Returns `None` if `b` is not a valid DNA symbol.
+    pub const fn from_ascii_const(b: u8) -> Option<Self> {
+        match b {
+            b'A' | b'a' => Some(Self::A),
+            b'C' | b'c' => Some(Self::C),
+            b'G' | b'g' => Some(Self::G),
+            b'T' | b't' => Some(Self::T),
+
+            b'N' | b'n' => Some(Self::N),
+            b'R' | b'r' => Some(Self::R),
+            b'Y' | b'y' => Some(Self::Y),
+            b'S' | b's' => Some(Self::S),
+            b'W' | b'w' => Some(Self::W),
+            b'K' | b'k' => Some(Self::K),
+            b'M' | b'm' => Some(Self::M),
+            b'B' | b'b' => Some(Self::B),
+            b'D' | b'd' => Some(Self::D),
+            b'H' | b'h' => Some(Self::H),
+            b'V' | b'v' => Some(Self::V),
+
+            _ => None,
+        }
+    }
+}
 impl fmt::Display for DnaBase {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use core::fmt::Write;
@@ -321,33 +331,47 @@ impl Base for RnaBase {
     fn try_from_ascii(b: u8) -> Result<Self> {
         if !b.is_ascii() {
             return Err(Error::InvalidByte {
-                alphabet: Alphabet::RNA,
+                alphabet: Self::ALPHABET,
                 invalid: b,
             });
         }
 
-        match b.to_ascii_uppercase() {
-            b'A' => Ok(RnaBase::A),
-            b'C' => Ok(RnaBase::C),
-            b'G' => Ok(RnaBase::G),
-            b'U' => Ok(RnaBase::U),
-            b'N' => Ok(RnaBase::N),
-            b'R' => Ok(RnaBase::R),
-            b'Y' => Ok(RnaBase::Y),
-            b'S' => Ok(RnaBase::S),
-            b'W' => Ok(RnaBase::W),
-            b'K' => Ok(RnaBase::K),
-            b'M' => Ok(RnaBase::M),
-            b'B' => Ok(RnaBase::B),
-            b'D' => Ok(RnaBase::D),
-            b'H' => Ok(RnaBase::H),
-            b'V' => Ok(RnaBase::V),
-            _ => Err(Error::InvalidCharacter {
-                alphabet: Alphabet::RNA,
-                invalid: b as char,
-            }),
-        }
+        Self::from_ascii_const(b).ok_or(Error::InvalidCharacter {
+            alphabet: Self::ALPHABET,
+            invalid: b as char,
+        })
     }
+
+    // fn try_from_ascii(b: u8) -> Result<Self> {
+    //     if !b.is_ascii() {
+    //         return Err(Error::InvalidByte {
+    //             alphabet: Alphabet::RNA,
+    //             invalid: b,
+    //         });
+    //     }
+    //
+    //     match b.to_ascii_uppercase() {
+    //         b'A' => Ok(RnaBase::A),
+    //         b'C' => Ok(RnaBase::C),
+    //         b'G' => Ok(RnaBase::G),
+    //         b'U' => Ok(RnaBase::U),
+    //         b'N' => Ok(RnaBase::N),
+    //         b'R' => Ok(RnaBase::R),
+    //         b'Y' => Ok(RnaBase::Y),
+    //         b'S' => Ok(RnaBase::S),
+    //         b'W' => Ok(RnaBase::W),
+    //         b'K' => Ok(RnaBase::K),
+    //         b'M' => Ok(RnaBase::M),
+    //         b'B' => Ok(RnaBase::B),
+    //         b'D' => Ok(RnaBase::D),
+    //         b'H' => Ok(RnaBase::H),
+    //         b'V' => Ok(RnaBase::V),
+    //         _ => Err(Error::InvalidCharacter {
+    //             alphabet: Alphabet::RNA,
+    //             invalid: b as char,
+    //         }),
+    //     }
+    // }
 
     fn complement(self) -> Self {
         match self {
@@ -434,10 +458,58 @@ impl Base for RnaBase {
     }
 }
 
+impl RnaBase {
+    /// Parse a single ASCII byte into an [`RnaBase`] in a `const` context.
+    ///
+    /// This is a const-friendly equivalent of [`Base::try_from_ascii`], intended
+    /// for compile-time validation (e.g. in macros).
+    ///
+    /// - Accepts both uppercase and lowercase ASCII letters
+    /// - Returns `None` for invalid characters
+    /// - Does not panic
+    pub const fn from_ascii_const(b: u8) -> Option<Self> {
+        match b {
+            b'A' | b'a' => Some(RnaBase::A),
+            b'C' | b'c' => Some(RnaBase::C),
+            b'G' | b'g' => Some(RnaBase::G),
+            b'U' | b'u' => Some(RnaBase::U),
+            b'N' | b'n' => Some(RnaBase::N),
+            b'R' | b'r' => Some(RnaBase::R),
+            b'Y' | b'y' => Some(RnaBase::Y),
+            b'S' | b's' => Some(RnaBase::S),
+            b'W' | b'w' => Some(RnaBase::W),
+            b'K' | b'k' => Some(RnaBase::K),
+            b'M' | b'm' => Some(RnaBase::M),
+            b'B' | b'b' => Some(RnaBase::B),
+            b'D' | b'd' => Some(RnaBase::D),
+            b'H' | b'h' => Some(RnaBase::H),
+            b'V' | b'v' => Some(RnaBase::V),
+            _ => None,
+        }
+    }
+}
+
 impl fmt::Display for RnaBase {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         use core::fmt::Write;
         f.write_char((*self).to_char())
+    }
+}
+
+/// Const-time validator for DNA string literals.
+///
+/// # Panics (during const-eval)
+/// Panics if `s` contains any non-DNA ASCII character.
+pub const fn assert_valid_dna_literal(s: &str) {
+    let bytes = s.as_bytes();
+    let mut i = 0;
+    while i < bytes.len() {
+        if crate::base::DnaBase::from_ascii_const(bytes[i]).is_none() {
+            // Note: This message is intentionally simple so it works in const contexts.
+            // (You can refine it later if your MSRV supports richer const panics.)
+            panic!("invalid DNA base in literal");
+        }
+        i += 1;
     }
 }
 

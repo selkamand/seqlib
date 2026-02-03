@@ -4,4 +4,5 @@ version = "0.1.0"
 edition = "2024"
 
 [dependencies]
+const_panic = "0.2.15"
 thiserror = "2.0.18"

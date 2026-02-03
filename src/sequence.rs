@@ -604,6 +604,7 @@ impl<B: Base> Seq<B> {
             self.to_string()
         }
     }
+
     // <- Constructors ->
 
     /// Parses and validates a sequence from a string slice.
@@ -627,6 +628,51 @@ impl<B: Base> Seq<B> {
 
         Ok(Self { seq })
     }
+}
+
+pub const fn validate_dna_literal(s: &str) {
+    let bytes = s.as_bytes();
+    let mut i: usize = 0;
+
+    while i < bytes.len() {
+        let b: u8 = bytes[i];
+
+        if DnaBase::from_ascii_const(b).is_none() {
+            // Render printable ASCII, otherwise show a placeholder.
+            let shown: char = if b >= b' ' && b <= b'~' {
+                b as char
+            } else {
+                '�'
+            };
+
+            const_panic::concat_panic!(
+                "invalid DNA base at position ",
+                i + 1,
+                " (",
+                shown,
+                ")",
+                ", byte: ",
+                b,
+                ". Allowed: A,C,G,T + IUPAC ambiguity codes; case-insensitive.",
+            );
+        }
+
+        i += 1;
+    }
+}
+
+#[macro_export]
+macro_rules! dna {
+    ($lit:literal) => {{
+        // Force compile-time validation *at the call site*.
+        const _: () = {
+            $crate::sequence::validate_dna_literal($lit);
+        };
+
+        // Now construct using the existing, single runtime constructor.
+        // If your const checker matches `try_from_ascii`, this unwrap is safe.
+        $crate::sequence::DnaSeq::new($lit).unwrap()
+    }};
 }
 
 #[cfg(test)]

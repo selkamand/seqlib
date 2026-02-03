@@ -28,12 +28,18 @@ impl Pos {
     ///
     /// # Errors
     /// Returns [`Error::PositionIsZero`] if `position == 0`.
-    pub fn new(position: usize) -> Result<Self> {
-        NonZeroUsize::new(position)
-            .map(Pos)
-            .ok_or(Error::PositionIsZero)
+    pub const fn new(position: usize) -> Result<Self> {
+        match NonZeroUsize::new(position) {
+            Some(validpos) => Ok(Self(validpos)),
+            None => Err(Error::PositionIsZero),
+        }
     }
 
+    /// An unchecked constructor that works because all NonZeroUsize values are valid positions.
+    /// Powers the pos! macro
+    pub const fn new_unchecked(position: NonZeroUsize) -> Self {
+        Pos(position)
+    }
     /// Return the underlying 1-based coordinate as a `usize`.
     pub fn get(self) -> usize {
         self.0.get()
@@ -234,6 +240,45 @@ impl Default for Region {
             end: Pos::MIN,
         }
     }
+}
+
+/// Construct a [`Pos`] from a **compile-time** integer literal.
+///
+/// This macro is intended for constant contexts and test code where the position
+/// is known at compile time.
+///
+/// - `pos!(1)` expands to a `Pos` representing 1.
+/// - `pos!(0)` is rejected (a [`Pos`] is always >= 1).
+///
+/// # Failure mode
+/// This macro does **not** introduce a runtime panic in normal use:
+/// it evaluates the invariant at compile time for literal inputs.
+/// If the value is invalid (e.g. `0`), compilation fails.
+///
+/// For dynamic values (runtime variables), use [`Pos::new`] instead.
+///
+/// # Examples
+/// ```
+/// use seqlib::coord::{Pos, pos};
+///
+/// const P: Pos = pos!(123);
+/// assert_eq!(P.get(), 123);
+/// ```
+#[macro_export]
+macro_rules! pos {
+    ($lit:literal) => {{
+        const P: Pos = match Pos::new($lit) {
+            Ok(pos) => pos,
+            Err(_) => panic!("Valid positions can only be created from non-zero unsigned integers"),
+        };
+        P
+
+        // Safe because 0 is handled above.
+        // const P: core::num::NonZeroUsize = match core::num::NonZeroUsize::new($lit) {
+        // Some(v) => v,
+        // None => compile_error!("Cannot create valid position from ($lit)"),
+        // $crate::coord::Pos::new_unchecked(P)
+    }};
 }
 
 #[cfg(test)]

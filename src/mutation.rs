@@ -3,7 +3,7 @@ use core::fmt;
 use crate::{
     base::{Base, ChemClass, DnaBase, RnaBase},
     context::ContextWindow,
-    coord::Pos,
+    coord::{Pos, Region},
     sequence::Seq,
 };
 
@@ -358,6 +358,34 @@ impl<B: Base> MutationWithContext<B> {
             return None;
         }
         self.context.as_ref()?.kmer_centered_on_anchor(5)
+    }
+
+    /// Get the region of context affected by the mutation
+    pub fn mutated_region(&self) -> Option<Region> {
+        let ctx = self.context()?;
+        todo!()
+    }
+
+    /// Visualise the mutation in context
+    pub fn to_difference_string(&self) -> String {
+        if !self.has_context() {
+            return self.mutation().to_string();
+        }
+
+        // Grab context
+        let ctx = match self.context() {
+            Some(val) => val,
+            None => return self.to_string(),
+        };
+
+        let seq = ctx.seq();
+        let region = Region::new(
+            ctx.anchor(),
+            ctx.anchor().saturating_add(self.mutation().reflen()),
+        );
+        // format!("Ref: ", seq.format_with_highlight_region(region));
+
+        todo!();
     }
 }
 
