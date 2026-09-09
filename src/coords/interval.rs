@@ -49,7 +49,14 @@ impl std::fmt::Display for Interval1 {
 }
 
 impl Interval1 {
-    /// Creates a 1-based inclusive interval from `start` to `end`.
+    /// Creates a 1-based residue interval from `start` to `end`
+    /// 0 is the position before the first residue in a sequence
+    ///
+    /// For the numbering of a the 3 base sequence:
+    ///  A C T
+    ///  1 2 3
+    ///
+    /// The interval describing the full sequence is 1-3
     ///
     /// # Examples
     ///
