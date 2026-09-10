@@ -241,15 +241,18 @@ impl std::fmt::Display for BaseInterval {
 }
 
 impl BaseInterval {
-    /// Creates a 1-based residue interval from `start` to `end`
-    /// 0 is the position before the first residue in a sequence
+    /// Creates a 1-based both-end inclusive residue interval from `start` to `end`
     ///
     /// For the numbering of a the 3 base sequence:
     ///  A C T
     ///  1 2 3
     ///
-    /// The interval describing the full sequence is 1-3
+    /// The BaseInterval describing the full sequence is 1-3
     ///
+    /// # Errors
+    ///
+    /// Returns [`Error::RangeEndTooSmall`] if `end` is less than `start`.
+    //
     /// # Examples
     ///
     /// ```
@@ -262,9 +265,6 @@ impl BaseInterval {
     /// # Ok::<(), seqlib::error::CoordError>(())
     /// ```
     ///
-    /// # Errors
-    ///
-    /// Returns [`Error::RangeEndTooSmall`] if `end` is less than `start`.
     pub fn try_new(start: BasePos, end: BasePos) -> Result<Self> {
         if end < start {
             return Err(Error::RangeEndTooSmall {
