@@ -1,8 +1,8 @@
 use seqlib::{
-    coords::{Interval1, Pos1, Region, Strand},
+    basepos,
+    coords::{BaseInterval, BasePos, Region, Strand},
     dna,
     mutations::{DnaSmallMutation, MutationWithContext},
-    pos1,
     sequences::SourcedSeq,
 };
 
@@ -10,7 +10,7 @@ fn main() {
     // Define a small dna mutation (e.g. a snv / insertion / deletion / etc)
     let mutation = DnaSmallMutation::new(
         "chr1".to_owned(),
-        pos1!(2004),
+        basepos!(2004),
         dna!("A"),
         dna!("G"),
         Some(Strand::Positive),
@@ -27,7 +27,7 @@ fn main() {
         dna!("ACGTACGTGCA"),
         Region::new(
             "chr1",
-            Interval1::new(pos1!(2000), pos1!(2010))
+            BaseInterval::try_new(basepos!(2000), basepos!(2010))
                 .expect("example context coordinates are valid"),
         ),
         Some(Strand::Positive),
@@ -49,7 +49,7 @@ fn main() {
     // Representing Indels
     let indel = DnaSmallMutation::new(
         "chr1".to_owned(),
-        pos1!(2004),
+        basepos!(2004),
         dna!("A"),
         dna!(""),
         Some(Strand::Positive),

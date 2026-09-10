@@ -1,6 +1,6 @@
 use seqlib::{
-    coords::{Interval1, Pos1},
-    pos1,
+    basepos,
+    coords::{BaseInterval, BasePos},
     sequences::{BaseSliceExt, IupacDnaSeq},
 };
 
@@ -10,9 +10,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("{seq} <- Sequence (original)");
 
     // Define a interval (1 based start & end, both-end inclusive)
-    let start = pos1!(2);
-    let end = pos1!(4);
-    let interval = Interval1::new(start, end)?;
+    let start = basepos!(2);
+    let end = basepos!(4);
+    let interval = BaseInterval::try_new(start, end)?;
 
     // Highlight where this interval is on our sequence
     println!(

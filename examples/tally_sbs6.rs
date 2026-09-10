@@ -1,6 +1,6 @@
 use seqlib::{
-    base::DnaBase, coords::Pos1, dna, mutations::DnaSingleBaseSubstitution,
-    mutations::DnaSmallMutation, pos1,
+    base::DnaBase, basepos, coords::BasePos, dna, mutations::DnaSingleBaseSubstitution,
+    mutations::DnaSmallMutation,
 };
 
 #[derive(Debug, Default)]
@@ -15,14 +15,20 @@ struct Sbs6Tally {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mutations = [
-        DnaSmallMutation::new("Chr1".to_owned(), pos1!(101), dna!("C"), dna!("A"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), pos1!(103), dna!("C"), dna!("T"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), pos1!(104), dna!("T"), dna!("A"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), pos1!(105), dna!("T"), dna!("C"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), pos1!(106), dna!("T"), dna!("G"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), pos1!(107), dna!("G"), dna!("A"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), pos1!(108), dna!("C"), dna!("C"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), pos1!(109), dna!("C"), dna!("CA"), None),
+        DnaSmallMutation::new("Chr1".to_owned(), basepos!(101), dna!("C"), dna!("A"), None),
+        DnaSmallMutation::new("Chr1".to_owned(), basepos!(103), dna!("C"), dna!("T"), None),
+        DnaSmallMutation::new("Chr1".to_owned(), basepos!(104), dna!("T"), dna!("A"), None),
+        DnaSmallMutation::new("Chr1".to_owned(), basepos!(105), dna!("T"), dna!("C"), None),
+        DnaSmallMutation::new("Chr1".to_owned(), basepos!(106), dna!("T"), dna!("G"), None),
+        DnaSmallMutation::new("Chr1".to_owned(), basepos!(107), dna!("G"), dna!("A"), None),
+        DnaSmallMutation::new("Chr1".to_owned(), basepos!(108), dna!("C"), dna!("C"), None),
+        DnaSmallMutation::new(
+            "Chr1".to_owned(),
+            basepos!(109),
+            dna!("C"),
+            dna!("CA"),
+            None,
+        ),
     ];
 
     let mut tally = Sbs6Tally::default();

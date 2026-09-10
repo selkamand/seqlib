@@ -1,19 +1,19 @@
-use seqlib::coords::{Interval1, Pos1, Region, Strand};
+use seqlib::coords::{BaseInterval, BasePos, Region, Strand};
 use seqlib::mutations::{MutationWithContext, SmallMutation};
 use seqlib::sequences::{BaseSliceExt, SourcedSeq};
-use seqlib::{dna, pos1};
+use seqlib::{basepos, dna};
 use std::error::Error;
 
 fn main() -> Result<(), Box<dyn Error>> {
     let mutation = SmallMutation::new(
         "Chr1".to_owned(),
-        pos1!(2000),
+        basepos!(2000),
         dna!("A"),
         dna!("C"),
         Some(Strand::Positive),
     );
 
-    let interval = Interval1::new(pos1!(2000), pos1!(2000))?;
+    let interval = BaseInterval::try_new(basepos!(2000), basepos!(2000))?;
 
     let context = SourcedSeq::new(
         dna!("ACTGATCGAACGAGCATGCTACGGGGCCGATCGATTATCGATCAGTCA"),
