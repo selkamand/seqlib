@@ -21,12 +21,12 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 /// let i = Interval::try_new(Pos0::from(0), Pos0::from(3))?;
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Interval {
+pub struct InterbaseInterval {
     start: Pos0,
     end: Pos0,
 }
 
-impl Interval {
+impl InterbaseInterval {
     /// Create a new inter-residue, zero-based [`Interval`]
     ///
     /// ```text
@@ -204,11 +204,10 @@ impl Interval {
     ///
     /// assert_eq!(local, Interval::try_new(pos0!(2), pos0!(3)))
     ///
-    ///
     /// # Ok::<(), seqlib::error::CoordError>(())    
     /// ```
     ///
-    pub fn local_interval(&self, original: Interval) -> Option<Interval> {
+    pub fn local_interval(&self, original: InterbaseInterval) -> Option<InterbaseInterval> {
         // Check supplied interval is contained within self (recall that our constructor guarantees
         // start < end so we only need to do these two checks
         if original.start < self.start || original.end > self.end {
@@ -218,7 +217,8 @@ impl Interval {
         let local_start = original.start.get() - self.start.get();
         let local_end = local_start + original.len();
 
-        let local_interval = Interval::new_unchecked(Pos0::new(local_start), Pos0::new(local_end));
+        let local_interval =
+            InterbaseInterval::new_unchecked(Pos0::new(local_start), Pos0::new(local_end));
 
         Some(local_interval)
     }
@@ -227,18 +227,18 @@ impl Interval {
 /// A genomic interval (Start & End)
 /// Both are 1-based and both-end inclusive
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct Interval1 {
+pub struct BaseInterval {
     start: Pos1,
     end: Pos1,
 }
 
-impl std::fmt::Display for Interval1 {
+impl std::fmt::Display for BaseInterval {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}-{}", self.start, self.end)
     }
 }
 
-impl Interval1 {
+impl BaseInterval {
     /// Creates a 1-based residue interval from `start` to `end`
     /// 0 is the position before the first residue in a sequence
     ///
@@ -263,7 +263,7 @@ impl Interval1 {
     /// # Errors
     ///
     /// Returns [`Error::RangeEndTooSmall`] if `end` is less than `start`.
-    pub fn new(start: Pos1, end: Pos1) -> Result<Self> {
+    pub fn try_new(start: Pos1, end: Pos1) -> Result<Self> {
         if end < start {
             return Err(Error::RangeEndTooSmall {
                 start: start.into(),
@@ -446,7 +446,7 @@ impl Interval1 {
     }
 }
 
-impl Default for Interval1 {
+impl Default for BaseInterval {
     fn default() -> Self {
         Self {
             start: Pos1::MIN,
