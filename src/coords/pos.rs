@@ -367,7 +367,7 @@ impl From<BasePos> for usize {
         value.get()
     }
 }
-/// Construct a [`Pos`] from a **compile-time** integer literal.
+/// Construct a [`BasePos`] from a **compile-time** integer literal.
 ///
 /// This macro is intended for constant contexts and test code where the position
 /// is known at compile time.
@@ -380,7 +380,7 @@ impl From<BasePos> for usize {
 /// it evaluates the invariant at compile time for literal inputs.
 /// If the value is invalid (e.g. `0`), compilation fails.
 ///
-/// For dynamic values (runtime variables), use [`Pos::new`] instead.
+/// For dynamic values (runtime variables), use [`BasePos::new`] instead.
 ///
 /// # Examples
 /// ```
@@ -404,7 +404,35 @@ macro_rules! basepos {
     }};
 }
 
-//TODO: add an interbase position creation macro
+/// Construct an [`InterbasePos`] from a **compile-time** integer literal.
+///
+/// This macro is intended for constant contexts and test code where the position
+/// is known at compile time.
+///
+/// - `interbasepos!(0)` expands to an [`InterbasePos`] representing 0.
+///
+/// # Failure mode
+/// This macro does **not** introduce a runtime panic in normal use:
+/// it evaluates the invariant at compile time for literal inputs.
+///
+/// For dynamic values (runtime variables), use [`InterbasePos::from`] or [`InterbasePos::new`] instead.
+///
+/// # Examples
+/// ```
+/// use seqlib::coords::{BasePos};
+/// use seqlib::interbasepos;
+///
+/// const P: InterbasePos = interbasepos!(123);
+/// assert_eq!(P.get(), 123);
+/// ```
+#[macro_export]
+macro_rules! interbasepos {
+    ($lit:literal) => {{
+        const P: InterbasePos = InterbasePos::new_panic($lit);
+        P
+    }};
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
