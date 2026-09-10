@@ -8,18 +8,31 @@ use std::num::NonZeroUsize;
 
 /// A position in a zero-base inter-base coordinate system
 ///
+/// Numbers are assigned to the space between bases (starting at 0).
+///
+/// ```{text}
+///   A   T   A   C   G
+/// 0   1   2   3   4   5
+/// ```
+///
+/// So an [`InterbasePos`] of `4` doesn't mean much by itself, but packaged into an [`InterbaseInterval`] (e.g. `1-4`) unambiguously describe the sequence (`TAC`).
+///
+/// Interbase coordinate systems are also great for unambiguosly describing mutated sequences (including insertions) (which happen between bases).
+/// This is why (inspired by the GA4GH Variant Representation Specification) `seqlib` mutation data types use interbase coordinates.
+///
 /// # Example
 /// ```
-/// use seqlib::coords::Pos0;
+/// use seqlib::coords::InterbasePos;
 ///
 /// // Define first position
-/// let position = Pos0::from(0usize);
+/// let position = InterbasePos::from(0usize);
 ///
 /// // Define second position
-/// let position = Pos0::from(1usize);
+/// let position = InterbasePos::from(1usize);
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct InterbasePos(usize);
+
 impl InterbasePos {
     /// Maximum Allowed Position Value
     pub const MAX: Self = Self(usize::MAX);
@@ -32,7 +45,7 @@ impl InterbasePos {
         self.0
     }
 
-    /// Create a Pos from a usize (infallable as any valid usize is a valid position)
+    /// Create an [`InterbasePos`] from a usize (infallable as any valid usize is a valid position)
     pub const fn new(position: usize) -> Self {
         Self(position)
     }
@@ -47,13 +60,13 @@ impl InterbasePos {
         Some(Self::from(v))
     }
 
-    /// Add an offset, saturating at `Pos0::MAX` on overflow.
+    /// Add an offset, saturating at `InterbasePos::MAX` on overflow.
     pub fn saturating_add(self, offset: usize) -> Self {
         // Pos::MAX is usize::MAX so we can just use usize saturating_add
         Self::from(self.get().saturating_add(offset))
     }
 
-    /// Subtract an offset, saturating at `Pos0::MIN` on underflow.
+    /// Subtract an offset, saturating at `InterbasePos::MIN` on underflow.
     pub fn saturating_sub(self, offset: usize) -> Self {
         Self::from(self.get().saturating_sub(offset))
     }
@@ -90,20 +103,21 @@ impl InterbasePos {
     }
 }
 
-// Conversions into Pos0
+// Conversions into InterbasePos
 impl From<usize> for InterbasePos {
     fn from(value: usize) -> Self {
         Self(value)
     }
 }
+
 impl From<BasePos> for InterbasePos {
     fn from(value: BasePos) -> Self {
-        let x = value.get() - 1; // Can never fail (go below zero) because Pos1 is a NonZeroUsize
+        let x = value.get() - 1; // Can never fail (go below zero) because BasePos is a NonZeroUsize
         Self(x)
     }
 }
 
-// Converions out of Pos0
+// Converions out of InterbasePos
 impl From<InterbasePos> for usize {
     fn from(value: InterbasePos) -> Self {
         value.get()
@@ -123,6 +137,19 @@ impl std::fmt::Display for InterbasePos {
 /// coordinate, which helps avoid off-by-one bugs when converting to 0-based indices
 /// for slicing.
 ///
+///
+///
+/// Each base is numbered starting at 1
+///
+/// ```{text}
+/// A T A C G
+/// 1 2 3 4 5
+/// ```
+///
+/// So a [`BasePos`] of `4` refers to a `C`
+/// and an [`BaseInterval`] of 2-4 refers to the 3bp sequence `TAC` (both-end inclusive)
+///
+///
 /// # Invariants
 /// - Always `>= 1`.
 ///
@@ -140,7 +167,7 @@ impl BasePos {
     /// Minimum Allowed Position Value
     pub const MIN: Self = Self(NonZeroUsize::MIN);
 
-    /// Construct a 1-based position.
+    /// Construct a 1-based [`BasePos`].
     ///
     /// # Errors
     /// Returns [`Error::PositionIsZero`] if `position == 0`.
