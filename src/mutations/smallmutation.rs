@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::{
     base::{Base, ChemClass, DnaBase, IupacDnaBase, IupacRnaBase, RnaBase},
-    coords::{Pos1, Strand},
+    coords::{BasePos, Strand},
     error::MutationError as Error,
     sequences::Seq,
 };
@@ -30,7 +30,7 @@ pub struct SmallMutation<B: Base> {
     /// Chromosome / Contig of mutation
     chromosome: String,
     /// 1-based position (start)
-    position: Pos1,
+    position: BasePos,
     /// Original base sequence in reference
     reference: Seq<B>,
 
@@ -91,7 +91,7 @@ impl<B: Base> SmallMutation<B> {
     /// - `strand`: Strand
     pub fn new(
         chromosome: String,
-        position: Pos1,
+        position: BasePos,
         reference: Seq<B>,
         alternative: Seq<B>,
         strand: Option<Strand>,
@@ -114,7 +114,7 @@ impl<B: Base> SmallMutation<B> {
     /// Returns the 1-based start position of the mutation.
     ///
     /// This follows VCF conventions: the coordinate refers to the first base of `reference`.
-    pub fn position(&self) -> Pos1 {
+    pub fn position(&self) -> BasePos {
         self.position
     }
 
@@ -410,7 +410,7 @@ mod tests {
     fn dna_mut(ref_allele: &str, alt_allele: &str) -> IupacDnaSmallMutation {
         IupacDnaSmallMutation::new(
             "chr1".to_string(),
-            Pos1::new(123).unwrap(),
+            BasePos::new(123).unwrap(),
             dna_iupac(ref_allele),
             dna_iupac(alt_allele),
             Some(Strand::Positive),
@@ -420,7 +420,7 @@ mod tests {
     fn rna_mut(ref_allele: &str, alt_allele: &str) -> IupacRnaSmallMutation {
         IupacRnaSmallMutation::new(
             "tx1".to_string(),
-            Pos1::new(7).unwrap(),
+            BasePos::new(7).unwrap(),
             rna_iupac(ref_allele),
             rna_iupac(alt_allele),
             Some(Strand::Positive),

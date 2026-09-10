@@ -2,7 +2,7 @@
 
 use std::num::NonZeroUsize;
 
-use crate::coords::{Pos0, Pos1};
+use crate::coords::{BasePos, InterbasePos};
 use crate::error::CoordError as Error;
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
@@ -22,8 +22,8 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterbaseInterval {
-    start: Pos0,
-    end: Pos0,
+    start: InterbasePos,
+    end: InterbasePos,
 }
 
 impl InterbaseInterval {
@@ -37,7 +37,7 @@ impl InterbaseInterval {
     ///
     /// # Invariants
     /// Start must be less than end (no empty intervals allowed)
-    pub fn try_new(start: Pos0, end: Pos0) -> Result<Self> {
+    pub fn try_new(start: InterbasePos, end: InterbasePos) -> Result<Self> {
         if start >= end {
             return Err(Error::InvalidIntervalCoords {
                 start: start.get(),
@@ -58,7 +58,7 @@ impl InterbaseInterval {
     ///     0   1   2   3   4
     ///    └─────┘
     /// ```
-    pub fn new_unchecked(start: Pos0, end: Pos0) -> Self {
+    pub fn new_unchecked(start: InterbasePos, end: InterbasePos) -> Self {
         Self { start, end }
     }
 
@@ -78,7 +78,7 @@ impl InterbaseInterval {
     /// assert_eq!(*interval.end(), Pos::new(13)?);
     /// # Ok::<(), seqlib::error::CoordError>(())
     /// ```
-    pub fn around_position(pos: Pos0, left: usize, right: usize) -> Self {
+    pub fn around_position(pos: InterbasePos, left: usize, right: usize) -> Self {
         Self {
             start: pos.clone().saturating_sub(left),
             end: pos.saturating_add(right),
@@ -97,7 +97,7 @@ impl InterbaseInterval {
     /// assert_eq!(*interval.start(), Pos::new(3)?);
     /// # Ok::<(), seqlib::error::CoordError>(())
     /// ```
-    pub fn start(&self) -> &Pos0 {
+    pub fn start(&self) -> &InterbasePos {
         &self.start
     }
 
@@ -114,7 +114,7 @@ impl InterbaseInterval {
     /// assert_eq!(*interval.end(), Pos::new(7)?);
     /// # Ok::<(), seqlib::error::CoordError>(())
     /// ```
-    pub fn end(&self) -> &Pos0 {
+    pub fn end(&self) -> &InterbasePos {
         &self.end
     }
 
@@ -217,8 +217,10 @@ impl InterbaseInterval {
         let local_start = original.start.get() - self.start.get();
         let local_end = local_start + original.len();
 
-        let local_interval =
-            InterbaseInterval::new_unchecked(Pos0::new(local_start), Pos0::new(local_end));
+        let local_interval = InterbaseInterval::new_unchecked(
+            InterbasePos::new(local_start),
+            InterbasePos::new(local_end),
+        );
 
         Some(local_interval)
     }
@@ -228,8 +230,8 @@ impl InterbaseInterval {
 /// Both are 1-based and both-end inclusive
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct BaseInterval {
-    start: Pos1,
-    end: Pos1,
+    start: BasePos,
+    end: BasePos,
 }
 
 impl std::fmt::Display for BaseInterval {
@@ -263,7 +265,7 @@ impl BaseInterval {
     /// # Errors
     ///
     /// Returns [`Error::RangeEndTooSmall`] if `end` is less than `start`.
-    pub fn try_new(start: Pos1, end: Pos1) -> Result<Self> {
+    pub fn try_new(start: BasePos, end: BasePos) -> Result<Self> {
         if end < start {
             return Err(Error::RangeEndTooSmall {
                 start: start.into(),
@@ -289,7 +291,7 @@ impl BaseInterval {
     /// assert_eq!(*interval.end(), Pos::new(13)?);
     /// # Ok::<(), seqlib::error::CoordError>(())
     /// ```
-    pub fn around_position(pos: Pos1, left: usize, right: usize) -> Self {
+    pub fn around_position(pos: BasePos, left: usize, right: usize) -> Self {
         Self {
             start: pos.saturating_sub(left),
             end: pos.saturating_add(right),
@@ -308,7 +310,7 @@ impl BaseInterval {
     /// assert_eq!(*interval.start(), Pos::new(3)?);
     /// # Ok::<(), seqlib::error::CoordError>(())
     /// ```
-    pub fn start(&self) -> &Pos1 {
+    pub fn start(&self) -> &BasePos {
         &self.start
     }
 
@@ -324,7 +326,7 @@ impl BaseInterval {
     ///
     /// assert_eq!(*interval.end(), pos1!(7));
     /// ```
-    pub fn end(&self) -> &Pos1 {
+    pub fn end(&self) -> &BasePos {
         &self.end
     }
 
@@ -436,21 +438,21 @@ impl BaseInterval {
     /// assert_eq!(interval.local_position(Pos::new(14)?), None);
     /// # Ok::<(), seqlib::error::CoordError>(())
     /// ```
-    pub fn local_position(&self, pos: Pos1) -> Option<Pos1> {
+    pub fn local_position(&self, pos: BasePos) -> Option<BasePos> {
         if pos < self.start || pos > self.end {
             return None;
         }
 
         let local_position = pos.get() - self.start.get() + 1;
-        Pos1::new(local_position).ok()
+        BasePos::new(local_position).ok()
     }
 }
 
 impl Default for BaseInterval {
     fn default() -> Self {
         Self {
-            start: Pos1::MIN,
-            end: Pos1::MIN,
+            start: BasePos::MIN,
+            end: BasePos::MIN,
         }
     }
 }

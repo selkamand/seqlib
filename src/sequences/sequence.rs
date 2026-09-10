@@ -2,7 +2,7 @@ use crate::base::{
     Alphabet, Base, ChemClass, ConcreteBase, DegenerateBase, DnaBase, IupacDnaBase, IupacRnaBase,
     RnaBase,
 };
-use crate::coords::{Interval1, Pos1};
+use crate::coords::{BaseInterval, BasePos};
 use crate::error::SequenceError;
 use crate::render::SeqStyler;
 use core::fmt;
@@ -333,12 +333,12 @@ impl<B: Base> Seq<B> {
     }
 
     /// Get the Position representing the end of the sequence
-    pub fn max_pos(&self) -> Pos1 {
-        Pos1::new(self.len()).unwrap_or_default()
+    pub fn max_pos(&self) -> BasePos {
+        BasePos::new(self.len()).unwrap_or_default()
     }
 
     /// Does interval span a range that exists in this sequence. If sequence is empty no intervals are valid
-    pub fn is_interval_valid(&self, interval: &Interval1) -> bool {
+    pub fn is_interval_valid(&self, interval: &BaseInterval) -> bool {
         match self.is_empty() {
             true => false,
             false => *interval.end() <= self.max_pos(),
@@ -347,7 +347,7 @@ impl<B: Base> Seq<B> {
 
     /// Does the sequence contain a particular position, or does it fall outside of the sequence
     /// length
-    pub fn sequence_contains_position(&self, pos: Pos1) -> bool {
+    pub fn sequence_contains_position(&self, pos: BasePos) -> bool {
         pos <= self.max_pos()
     }
 
@@ -479,7 +479,7 @@ impl<B: Base> Seq<B> {
     /// let slice = seq.subseq_slice(&interval).unwrap();
     /// assert_eq!(slice.to_string_upper(), "CGT");
     /// ```
-    pub fn subseq_slice(&self, interval: &Interval1) -> Result<&[B]> {
+    pub fn subseq_slice(&self, interval: &BaseInterval) -> Result<&[B]> {
         // Convert interval (1-based inclusive) to Rust indices (0-based, end-exclusive).
         let start = interval.start().as_0based_index();
         let end_exclusive = interval.end().as_0based_index() + 1;
@@ -521,7 +521,7 @@ impl<B: Base> Seq<B> {
     /// assert_eq!(slice.to_string_upper(), "CGTAC");
     /// assert_eq!(clamped_interval, Some(Interval::new(pos1!(2), pos1!(6)).unwrap()));
     /// ```
-    pub fn subseq_covered_slice(&self, interval: &Interval1) -> (&[B], Option<Interval1>) {
+    pub fn subseq_covered_slice(&self, interval: &BaseInterval) -> (&[B], Option<BaseInterval>) {
         // Convert interval (1-based inclusive) to Rust indices (0-based, end-exclusive).
         let start = interval.start().as_0based_index();
         if start > self.len() - 1 {
@@ -536,7 +536,7 @@ impl<B: Base> Seq<B> {
 
         let new_interval = match sequence_contains_end_position {
             true => interval.clone(),
-            false => Interval1::new(interval.start().to_owned(), self.max_pos().to_owned())
+            false => BaseInterval::new(interval.start().to_owned(), self.max_pos().to_owned())
                 .expect("Bug in subseq_covered_slice: creation of new end"),
         };
 
@@ -571,7 +571,7 @@ impl<B: Base> Seq<B> {
     /// assert_eq!(sub.to_string(), "CGT");
     /// assert_eq!(seq.to_string(), "ACGTAC"); // original unchanged
     /// ```
-    pub fn subseq(&self, interval: &Interval1) -> Result<Seq<B>> {
+    pub fn subseq(&self, interval: &BaseInterval) -> Result<Seq<B>> {
         let slice = self.subseq_slice(interval)?;
         Ok(Seq {
             seq: slice.to_vec(),
@@ -615,14 +615,14 @@ impl<B: Base> Seq<B> {
     /// Highlight a base using a 1-based sequence-local [`Pos`].
     ///
     /// If the position is out of bounds, no base is highlighted.
-    pub fn format_with_highlight_pos(&self, pos: Option<Pos1>) -> String {
+    pub fn format_with_highlight_pos(&self, pos: Option<BasePos>) -> String {
         let idx = pos.map(|position| position.as_0based_index());
         self.format_with_highlight_index(idx)
     }
 
     /// Highlight a series of bases using a interval. If interval end falls outside of sequence length
     /// it will be annotated with ]>EndPosition
-    pub fn format_with_highlight_interval(&self, interval: Option<&Interval1>) -> String {
+    pub fn format_with_highlight_interval(&self, interval: Option<&BaseInterval>) -> String {
         if let Some(reg) = interval {
             let (start, end) = reg.as_0based_indices();
             let mut s = self.to_string();
@@ -667,7 +667,7 @@ impl<B: Base> Seq<B> {
     /// sequence receives `outside_style`.
     pub fn format_interval_with_styles(
         &self,
-        interval: &Interval1,
+        interval: &BaseInterval,
         outside_style: &SeqStyler,
         inside_style: &SeqStyler,
     ) -> String {
@@ -712,19 +712,19 @@ impl<B: Base> Seq<B> {
     }
 
     /// Highlight an interval using the standard sequence styles.
-    pub fn format_with_coloured_interval(&self, interval: &Interval1) -> String {
+    pub fn format_with_coloured_interval(&self, interval: &BaseInterval) -> String {
         self.format_interval_with_styles(interval, &SeqStyler::DIMMED, &SeqStyler::HIGHLIGHT)
     }
 
     /// Mutate a sequence changing an interval to a new sequence
-    pub fn mutate(&mut self, interval: Interval1, new: &Seq<B>) -> Result<Self> {
+    pub fn mutate(&mut self, interval: BaseInterval, new: &Seq<B>) -> Result<Self> {
         let mut cloned_seq = self.clone();
         cloned_seq.mutate_in_place(interval, new)?;
 
         Ok(cloned_seq)
     }
 
-    pub fn mutate_in_place(&mut self, interval: Interval1, new: &Seq<B>) -> Result<()> {
+    pub fn mutate_in_place(&mut self, interval: BaseInterval, new: &Seq<B>) -> Result<()> {
         if !self.is_interval_valid(&interval) {
             return Err(SequenceError::FailedMutateInvalidInterval {
                 interval,
@@ -933,7 +933,7 @@ impl<B: DegenerateBase> Seq<B> {
         for (idx, base) in self.as_slice().iter().copied().enumerate() {
             let concrete = base.try_to_concrete().ok_or_else(|| {
                 SequenceError::CannotConvertDegenerateSequence {
-                    position: Pos1::new(idx + 1).unwrap(),
+                    position: BasePos::new(idx + 1).unwrap(),
                     base: base.to_char(),
                 }
             })?;
@@ -1228,17 +1228,18 @@ mod tests {
         let s = dna("ACGTAC");
 
         // Interval is 1-based inclusive: 2..=4 => C,G,T
-        let interval = Interval1::new(Pos1::new(2).unwrap(), Pos1::new(4).unwrap()).unwrap();
+        let interval =
+            BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
         let view = s.subseq_slice(&interval).unwrap();
         assert_eq!(view.to_string_upper(), "CGT");
 
         // single base: 1..=1 => A
-        let r1 = Interval1::new(Pos1::new(1).unwrap(), Pos1::new(1).unwrap()).unwrap();
+        let r1 = BaseInterval::new(BasePos::new(1).unwrap(), BasePos::new(1).unwrap()).unwrap();
         let one = s.subseq_slice(&r1).unwrap();
         assert_eq!(one.to_string_upper(), "A");
 
         // last base: 6..=6 => C
-        let rlast = Interval1::new(Pos1::new(6).unwrap(), Pos1::new(6).unwrap()).unwrap();
+        let rlast = BaseInterval::new(BasePos::new(6).unwrap(), BasePos::new(6).unwrap()).unwrap();
         let last = s.subseq_slice(&rlast).unwrap();
         assert_eq!(last.to_string_upper(), "C");
     }
@@ -1246,7 +1247,8 @@ mod tests {
     #[test]
     fn subseq_by_interval_returns_expected_owned_seq_and_does_not_modify_original() {
         let s = dna("ACGTAC");
-        let interval = Interval1::new(Pos1::new(2).unwrap(), Pos1::new(4).unwrap()).unwrap();
+        let interval =
+            BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
 
         let sub = s.subseq(&interval).unwrap();
         assert_eq!(sub.to_string_upper(), "CGT");
@@ -1258,7 +1260,8 @@ mod tests {
     #[test]
     fn subseq_owned_is_independent_of_original() {
         let s = dna("ACGTAC");
-        let interval = Interval1::new(Pos1::new(2).unwrap(), Pos1::new(4).unwrap()).unwrap();
+        let interval =
+            BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
 
         let mut sub = s.subseq(&interval).unwrap();
         sub.rev_in_place();
@@ -1273,7 +1276,8 @@ mod tests {
     #[test]
     fn subseq_and_subseq_slice_agree_on_content() {
         let s = dna("ACGTAC");
-        let interval = Interval1::new(Pos1::new(2).unwrap(), Pos1::new(5).unwrap()).unwrap(); // 2..=5 => CGTA
+        let interval =
+            BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(5).unwrap()).unwrap(); // 2..=5 => CGTA
 
         let view = s.subseq_slice(&interval).unwrap();
         let owned = s.subseq(&interval).unwrap();
@@ -1286,7 +1290,8 @@ mod tests {
         let s = dna("ACGTAC");
 
         // End beyond sequence length (len=6). Interval 1..=7 should fail.
-        let interval = Interval1::new(Pos1::new(1).unwrap(), Pos1::new(7).unwrap()).unwrap();
+        let interval =
+            BaseInterval::new(BasePos::new(1).unwrap(), BasePos::new(7).unwrap()).unwrap();
         assert!(s.subseq_slice(&interval).is_err());
         assert!(s.subseq(&interval).is_err());
     }
@@ -1296,7 +1301,8 @@ mod tests {
         let s = rna("ACGUAC"); // length 6
 
         // Interval 2..=4 => C,G,U
-        let interval = Interval1::new(Pos1::new(2).unwrap(), Pos1::new(4).unwrap()).unwrap();
+        let interval =
+            BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
 
         let view = s.subseq_slice(&interval).unwrap();
         assert_eq!(view.to_string_upper(), "CGU");

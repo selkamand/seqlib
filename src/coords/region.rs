@@ -1,12 +1,12 @@
 //!  Region type
 
-use crate::coords::Interval1;
+use crate::coords::BaseInterval;
 
 /// A region (name of originating sequence + 1-based inclusive interval)
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Region {
     name: String,
-    interval: Interval1,
+    interval: BaseInterval,
 }
 
 impl std::fmt::Display for Region {
@@ -26,7 +26,7 @@ impl Region {
     pub fn new<N, I>(name: N, interval: I) -> Self
     where
         N: Into<String>,
-        I: Into<Interval1>,
+        I: Into<BaseInterval>,
     {
         Self {
             name: name.into(),
@@ -35,7 +35,7 @@ impl Region {
     }
 
     /// Get region [`Interval`]
-    pub fn interval(&self) -> &Interval1 {
+    pub fn interval(&self) -> &BaseInterval {
         &self.interval
     }
 

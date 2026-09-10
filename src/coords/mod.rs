@@ -3,9 +3,9 @@ mod pos;
 mod region;
 mod strand;
 
-pub use interval::Interval;
-pub use interval::Interval1;
-pub use pos::Pos0;
-pub use pos::Pos1;
+pub use interval::BaseInterval;
+pub use interval::InterbaseInterval;
+pub use pos::BasePos;
+pub use pos::InterbasePos;
 pub use region::Region;
 pub use strand::Strand;

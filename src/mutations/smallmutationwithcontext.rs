@@ -1,6 +1,6 @@
 use crate::{
     base::Base,
-    coords::{Interval1, Pos1},
+    coords::{BaseInterval, BasePos},
     error::MutationError,
     mutations::SmallMutation,
     render::SeqStyler,
@@ -137,7 +137,7 @@ impl<B: Base> MutationWithContext<B> {
     /// # Panics
     /// Panics only if the invariants established by [`MutationWithContext::new`]
     /// have been violated, which indicates an internal bug.
-    pub fn anchor(&self) -> Pos1 {
+    pub fn anchor(&self) -> BasePos {
         let mutation_position = self.mutation().position().get();
         let context_start = self.context().region().interval().start().get();
 
@@ -149,7 +149,7 @@ impl<B: Base> MutationWithContext<B> {
              mutation position must lie within the context region",
             );
 
-        Pos1::new(local_position).expect(
+        BasePos::new(local_position).expect(
             "MutationWithContext invariant violated: \
          a validated local mutation position must be non-zero",
         )
@@ -174,7 +174,7 @@ impl<B: Base> MutationWithContext<B> {
     /// # Panics:
     /// Panics only if the invariants established by [`MutationWithContext::new`]
     /// have been violated or mutation position + reflength offset creates an overflow error, which indicate internal bugs.
-    pub fn mutated_interval(&self) -> Interval1 {
+    pub fn mutated_interval(&self) -> BaseInterval {
         let start = self.anchor();
 
         let offset = self
@@ -187,7 +187,7 @@ impl<B: Base> MutationWithContext<B> {
             .try_add(offset)
             .expect("mutation interval position overflowed usize");
 
-        Interval1::new(start, end)
+        BaseInterval::new(start, end)
             .expect("start plus a non-negative offset must form a valid interval")
     }
 
@@ -229,7 +229,7 @@ impl<B: Base> MutationWithContext<B> {
     /// # Panics
     /// Panics only if the invariants established by [`MutationWithContext::new`] which indicates
     /// internal bugs.
-    pub fn apply_mutation_with_alt_interval(&self) -> (Seq<B>, Option<Interval1>) {
+    pub fn apply_mutation_with_alt_interval(&self) -> (Seq<B>, Option<BaseInterval>) {
         let mut seq = self.context().seq().clone();
 
         let interval = self.mutated_interval();
@@ -252,7 +252,7 @@ impl<B: Base> MutationWithContext<B> {
                 .expect("mutated interval position overflowed usize");
 
             Some(
-                Interval1::new(start, end)
+                BaseInterval::new(start, end)
                     .expect("start plus a non-negative offset must form a valid interval"),
             )
         };
@@ -359,7 +359,7 @@ mod tests {
     ) -> MutationWithContext<DnaBase> {
         let mutation = SmallMutation::new(
             "chr1".to_string(),
-            Pos1::new(position).unwrap(),
+            BasePos::new(position).unwrap(),
             DnaSeq::new(reference).unwrap(),
             DnaSeq::new(alternative).unwrap(),
             Some(Strand::Positive),
@@ -368,7 +368,7 @@ mod tests {
             DnaSeq::new("ACGTACGT").unwrap(),
             Region::new(
                 "chr1",
-                Interval1::new(Pos1::new(100).unwrap(), Pos1::new(107).unwrap()).unwrap(),
+                BaseInterval::new(BasePos::new(100).unwrap(), BasePos::new(107).unwrap()).unwrap(),
             ),
             Some(Strand::Positive),
         );
@@ -380,7 +380,8 @@ mod tests {
     fn format_mutated_sequence_highlights_snv_alt_base() {
         let mutation = dna_mutation_with_context(103, "T", "A");
         let mutated = DnaSeq::new("ACGAACGT").unwrap();
-        let interval = Interval1::new(Pos1::new(4).unwrap(), Pos1::new(4).unwrap()).unwrap();
+        let interval =
+            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(4).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
@@ -396,7 +397,8 @@ mod tests {
     fn format_mutated_sequence_highlights_mnv_alt_bases() {
         let mutation = dna_mutation_with_context(103, "TAC", "GCA");
         let mutated = DnaSeq::new("ACGGCAGT").unwrap();
-        let interval = Interval1::new(Pos1::new(4).unwrap(), Pos1::new(6).unwrap()).unwrap();
+        let interval =
+            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(6).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
@@ -412,7 +414,8 @@ mod tests {
     fn format_mutated_sequence_highlights_entire_insertion_alt_allele() {
         let mutation = dna_mutation_with_context(103, "T", "TGG");
         let mutated = DnaSeq::new("ACGTGGACGT").unwrap();
-        let interval = Interval1::new(Pos1::new(4).unwrap(), Pos1::new(6).unwrap()).unwrap();
+        let interval =
+            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(6).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
@@ -428,7 +431,8 @@ mod tests {
     fn format_mutated_sequence_highlights_non_empty_deletion_alt_allele() {
         let mutation = dna_mutation_with_context(103, "TAC", "T");
         let mutated = DnaSeq::new("ACGTGT").unwrap();
-        let interval = Interval1::new(Pos1::new(4).unwrap(), Pos1::new(4).unwrap()).unwrap();
+        let interval =
+            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(4).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
@@ -459,7 +463,8 @@ mod tests {
     fn format_mutated_sequence_highlights_shorter_replacement_alt_allele() {
         let mutation = dna_mutation_with_context(103, "TAC", "G");
         let mutated = DnaSeq::new("ACGGGT").unwrap();
-        let interval = Interval1::new(Pos1::new(4).unwrap(), Pos1::new(4).unwrap()).unwrap();
+        let interval =
+            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(4).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
@@ -475,7 +480,8 @@ mod tests {
     fn format_mutated_sequence_highlights_first_base_alt_allele() {
         let mutation = dna_mutation_with_context(100, "A", "G");
         let mutated = DnaSeq::new("GCGTACGT").unwrap();
-        let interval = Interval1::new(Pos1::new(1).unwrap(), Pos1::new(1).unwrap()).unwrap();
+        let interval =
+            BaseInterval::new(BasePos::new(1).unwrap(), BasePos::new(1).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
@@ -491,7 +497,8 @@ mod tests {
     fn format_mutated_sequence_highlights_last_base_alt_allele() {
         let mutation = dna_mutation_with_context(107, "T", "A");
         let mutated = DnaSeq::new("ACGTACGA").unwrap();
-        let interval = Interval1::new(Pos1::new(8).unwrap(), Pos1::new(8).unwrap()).unwrap();
+        let interval =
+            BaseInterval::new(BasePos::new(8).unwrap(), BasePos::new(8).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);

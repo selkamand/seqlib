@@ -1,6 +1,6 @@
 use crate::{
     base::Alphabet,
-    coords::{Interval1, Pos1},
+    coords::{BaseInterval, BasePos},
 };
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
@@ -21,10 +21,10 @@ pub enum CoordError {
     PositionIsZero,
 
     #[error("position {value} cannot be represented on this platform; max allowed position: {max}")]
-    PositionOverflowU64 { value: u64, max: Pos1 },
+    PositionOverflowU64 { value: u64, max: BasePos },
 
     #[error("position {value} cannot be represented on this platform; max allowed position: {max}")]
-    PositionOverflowU32 { value: u32, max: Pos1 },
+    PositionOverflowU32 { value: u32, max: BasePos },
 
     #[error("position underflow: {lhs} - {rhs} would be < {min}")]
     PositionUnderflow { lhs: usize, rhs: usize, min: usize },
@@ -55,7 +55,7 @@ pub enum SequenceError {
 
     #[error("cannot mutate interval: {interval}; it spans beyond sequence length {seqlength}")]
     FailedMutateInvalidInterval {
-        interval: Interval1,
+        interval: BaseInterval,
         seqlength: usize,
     },
 
@@ -65,7 +65,7 @@ pub enum SequenceError {
     #[error(
         "cannot convert degenerate sequence to concrete sequence: ambiguous base '{base}' at position {position}"
     )]
-    CannotConvertDegenerateSequence { position: Pos1, base: char },
+    CannotConvertDegenerateSequence { position: BasePos, base: char },
 }
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
