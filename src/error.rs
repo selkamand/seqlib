@@ -32,6 +32,9 @@ pub enum CoordError {
     #[error("position overflow: {lhs} + {rhs} would exceed {max}")]
     PositionOverflowAdd { lhs: usize, rhs: usize, max: usize },
 
+    #[error("start position of interval ({start}) must be <= end position ({end})")]
+    InvalidIntervalCoords { start: usize, end: usize },
+
     #[error("end position of range ({end}) cannot be less than start position ({start})")]
     RangeEndTooSmall { start: usize, end: usize },
 }
