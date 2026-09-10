@@ -170,36 +170,42 @@ impl Interval {
         }
     }
 
-    /// Convert a global interval into a local interval
+    /// Converts a feature interval (`original`) to offsets within the region `self`.
     ///
-    /// The returned [`Interval`] is suitable for APIs that expect a sequence-local
-    /// range
+    /// Use this to locate a variant or annotation in a sequence extracted from `self`.
+    /// Both inputs use parent-sequence coordinates; the returned interval treats
+    /// the start of `self` as position `0`. (See example for clearer examples)
     ///
-    /// Returns `None` if interval is outside the interval.
+    /// Returns `None` unless `original` is fully contained within `self`.Convert a global interval into a local interval
     ///
     /// # Examples
     ///  
     /// ```text
-    ///                      A   T   A   C   G
-    /// Reference          0   1   2   3   4   5
-    /// Self:                  └───────────┘    2-5
-    /// original:                      └───┘        3-4
-    /// Local Frame                0   1   2   3
-    /// Local Interval:                └───┘        1-2 <- Returned
+    ///                        A   T   A   C   G
+    /// Parent coordinates:   0   1   2   3   4   5
+    /// Region (self):                └───────────┘    2-5
+    /// Feature (original):               └───┘        3-4
+    /// Local coordinates:            0   1   2   3
+    /// Local interval:                   └───┘        1-2 <- Returned
     /// ```
     ///
     /// ```
-    /// use seqlib::coords::{Interval, Pos};
+    /// use seqlib::coords::{Interval, Pos0};
     ///
-    /// let original_interval = Interval::new(Pos::new(2)?, Pos::new(5)?)?;
-    /// let interval = Interval::new(Pos::new(3)?, Pos::new(4)?)?;
-    /// let reframed_interval = Interval::new(Pos::new(1)?, Pos::new(2)?)?;
+    /// // A window described in chromosome coordinates, and its extracted bases.
+    /// let window = Interval::try_new(Pos0::new(2), Pos0::new(5))?;
     ///
-    /// assert_eq!(original_interval.local_interval(interval), reframed_interval);
-    /// # Ok::<(), seqlib::error::CoordError>(())
-    /// ```
+    /// // The variant's reference interval, also in chromosome coordinates.
+    /// let variant = Interval::try_new(Pos0::new(3), Pos0::new(4))?;
     ///
-    /// # Ok::<(), seqlib::error::CoordError>(())
+    /// // To describe the variant location within `window` interval (e.g. turn 3–4 into 2–3)
+    /// // we use the local_interval method
+    /// let local = window.local_interval(variant).unwrap();
+    ///
+    /// assert_eq!(local, Interval::try_new(pos0!(2), pos0!(3)))
+    ///
+    ///
+    /// # Ok::<(), seqlib::error::CoordError>(())    
     /// ```
     ///
     pub fn local_interval(&self, original: Interval) -> Option<Interval> {
