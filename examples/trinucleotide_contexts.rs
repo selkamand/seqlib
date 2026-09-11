@@ -13,7 +13,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         Some(Strand::Positive),
     );
 
-    let interval = BaseInterval::try_new(basepos!(2000), basepos!(2000))?;
+    let interval = BaseInterval::new(basepos!(2000), basepos!(2000))?;
 
     let context = SourcedSeq::new(
         dna!("ACTGATCGAACGAGCATGCTACGGGGCCGATCGATTATCGATCAGTCA"),

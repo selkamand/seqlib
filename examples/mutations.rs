@@ -27,7 +27,7 @@ fn main() {
         dna!("ACGTACGTGCA"),
         Region::new(
             "chr1",
-            BaseInterval::try_new(basepos!(2000), basepos!(2010))
+            BaseInterval::new(basepos!(2000), basepos!(2010))
                 .expect("example context coordinates are valid"),
         ),
         Some(Strand::Positive),

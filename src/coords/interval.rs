@@ -18,7 +18,7 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 /// # Examples
 /// ```
 /// use seqlib::coords::{InterbaseInterval, InterbasePos};
-/// let i = InterbaseInterval::try_new(InterbasePos::from(0), InterbasePos::from(3));
+/// let i = InterbaseInterval::new(InterbasePos::from(0), InterbasePos::from(3));
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct InterbaseInterval {
@@ -37,7 +37,7 @@ impl InterbaseInterval {
     ///
     /// # Invariants
     /// Start must be less than end (no empty intervals allowed)
-    pub fn try_new(start: InterbasePos, end: InterbasePos) -> Result<Self> {
+    pub fn new(start: InterbasePos, end: InterbasePos) -> Result<Self> {
         if start >= end {
             return Err(Error::InvalidIntervalCoords {
                 start: start.get(),
@@ -92,7 +92,7 @@ impl InterbaseInterval {
     /// ```
     /// use seqlib::coords::{InterbaseInterval, InterbasePos};
     ///
-    /// let interval = InterbaseInterval::try_new(InterbasePos::from(3), InterbasePos::from(7))?;
+    /// let interval = InterbaseInterval::new(InterbasePos::from(3), InterbasePos::from(7))?;
     ///
     /// assert_eq!(*interval.start(), InterbasePos::from(3));
     ///
@@ -109,7 +109,7 @@ impl InterbaseInterval {
     /// ```
     /// use seqlib::coords::{InterbaseInterval, InterbasePos};
     ///
-    /// let interval = InterbaseInterval::try_new(InterbasePos::from(2), InterbasePos::from(7)).unwrap();
+    /// let interval = InterbaseInterval::new(InterbasePos::from(2), InterbasePos::from(7)).unwrap();
     ///
     /// assert_eq!(*interval.end(), InterbasePos::from(7));
     /// # Ok::<(), seqlib::error::CoordError>(())
@@ -137,7 +137,7 @@ impl InterbaseInterval {
     /// ```
     /// use seqlib::coords::{InterbaseInterval, InterbasePos};
     ///
-    /// let interval = InterbaseInterval::try_new(InterbasePos::from(2), InterbasePos::from(4))?;
+    /// let interval = InterbaseInterval::new(InterbasePos::from(2), InterbasePos::from(4))?;
     ///
     /// assert_eq!(interval.len(), 2);
     /// # Ok::<(), seqlib::error::CoordError>(())
@@ -156,7 +156,7 @@ impl InterbaseInterval {
     /// ```
     /// use seqlib::coords::{InterbaseInterval, InterbasePos};
     /// use std::num::NonZeroUsize;
-    /// let interval = InterbaseInterval::try_new(InterbasePos::from(1), InterbasePos::from(5)).unwrap();
+    /// let interval = InterbaseInterval::new(InterbasePos::from(1), InterbasePos::from(5)).unwrap();
     ///
     /// assert_eq!(interval.len_nonzero(), NonZeroUsize::new(4).unwrap());
     /// ````
@@ -193,16 +193,16 @@ impl InterbaseInterval {
     /// use seqlib::coords::{InterbaseInterval, InterbasePos};
     ///
     /// // A window described in chromosome coordinates, and its extracted bases.
-    /// let window = InterbaseInterval::try_new(InterbasePos::from(2), InterbasePos::from(5))?;
+    /// let window = InterbaseInterval::new(InterbasePos::from(2), InterbasePos::from(5))?;
     ///
     /// // The variant's reference interval, also in chromosome coordinates.
-    /// let variant = InterbaseInterval::try_new(InterbasePos::from(3), InterbasePos::from(4))?;
+    /// let variant = InterbaseInterval::new(InterbasePos::from(3), InterbasePos::from(4))?;
     ///
     /// // To describe the variant location within `window` interval (e.g. turn 3–4 into 2–3)
     /// // we use the local_interval method
     /// let local = window.local_interval(variant).unwrap();
     ///
-    /// assert_eq!(local, InterbaseInterval::try_new(InterbasePos::from(2), InterbasePos::from(3))?);
+    /// assert_eq!(local, InterbaseInterval::new(InterbasePos::from(2), InterbasePos::from(3))?);
     ///
     /// # Ok::<(), seqlib::error::CoordError>(())    
     /// ```
@@ -258,14 +258,14 @@ impl BaseInterval {
     /// ```
     /// use seqlib::coords::{BaseInterval, BasePos};
     ///
-    /// let interval = BaseInterval::try_new(BasePos::new(2usize)?, BasePos::new(5)?)?;
+    /// let interval = BaseInterval::new(BasePos::new(2usize)?, BasePos::new(5)?)?;
     ///
     /// assert_eq!(*interval.start(), BasePos::new(2)?);
     /// assert_eq!(*interval.end(), BasePos::new(5)?);
     /// # Ok::<(), seqlib::error::CoordError>(())
     /// ```
     ///
-    pub fn try_new(start: BasePos, end: BasePos) -> Result<Self> {
+    pub fn new(start: BasePos, end: BasePos) -> Result<Self> {
         if end < start {
             return Err(Error::RangeEndTooSmall {
                 start: start.into(),
@@ -305,7 +305,7 @@ impl BaseInterval {
     /// ```
     /// use seqlib::coords::{BaseInterval, BasePos};
     ///
-    /// let interval = BaseInterval::try_new(BasePos::new(3)?, BasePos::new(7)?)?;
+    /// let interval = BaseInterval::new(BasePos::new(3)?, BasePos::new(7)?)?;
     ///
     /// assert_eq!(*interval.start(), BasePos::new(3)?);
     /// # Ok::<(), seqlib::error::CoordError>(())
@@ -322,7 +322,7 @@ impl BaseInterval {
     /// use seqlib::coords::{BaseInterval, BasePos};
     /// use seqlib::basepos;
     ///
-    /// let interval = BaseInterval::try_new(basepos!(2), basepos!(7)).unwrap();
+    /// let interval = BaseInterval::new(basepos!(2), basepos!(7)).unwrap();
     ///
     /// assert_eq!(*interval.end(), basepos!(7));
     /// ```
@@ -344,7 +344,7 @@ impl BaseInterval {
     /// ```
     /// use seqlib::coords::{BaseInterval, BasePos};
     ///
-    /// let interval = BaseInterval::try_new(BasePos::new(2)?, BasePos::new(5)?)?;
+    /// let interval = BaseInterval::new(BasePos::new(2)?, BasePos::new(5)?)?;
     ///
     /// assert_eq!(interval.len(), 4);
     /// # Ok::<(), seqlib::error::CoordError>(())
@@ -363,7 +363,7 @@ impl BaseInterval {
     /// ```
     /// use seqlib::coords::{BaseInterval, BasePos};
     /// use std::num::NonZeroUsize;
-    /// let interval = BaseInterval::try_new(BasePos::new(2usize)?, BasePos::new(2usize)?).unwrap();
+    /// let interval = BaseInterval::new(BasePos::new(2usize)?, BasePos::new(2usize)?).unwrap();
     ///
     /// assert_eq!(interval.len_nonzero(), NonZeroUsize::new(4).unwrap());
     /// # Ok::<(), seqlib::error::CoordError>(())
@@ -388,7 +388,7 @@ impl BaseInterval {
     /// ```
     /// use seqlib::coords::{BaseInterval, BasePos};
     ///
-    /// let interval = BaseInterval::try_new(BasePos::new(2)?, BasePos::new(5)?)?;
+    /// let interval = BaseInterval::new(BasePos::new(2)?, BasePos::new(5)?)?;
     ///
     /// assert_eq!(interval.as_0based_indices(), (1, 5));
     /// # Ok::<(), seqlib::error::CoordError>(())
@@ -409,7 +409,7 @@ impl BaseInterval {
     /// ```
     /// use seqlib::coords::{BaseInterval, BasePos};
     ///
-    /// let interval = BaseInterval::try_new(BasePos::new(8)?, BasePos::new(13)?)?;
+    /// let interval = BaseInterval::new(BasePos::new(8)?, BasePos::new(13)?)?;
     ///
     /// assert_eq!(interval.local_position(BasePos::new(10)?), Some(BasePos::new(3)?));
     /// # Ok::<(), seqlib::error::CoordError>(())
@@ -433,7 +433,7 @@ impl BaseInterval {
     /// ```
     /// use seqlib::coords::{BaseInterval, BasePos};
     ///
-    /// let interval = BaseInterval::try_new(BasePos::new(8)?, BasePos::new(13)?)?;
+    /// let interval = BaseInterval::new(BasePos::new(8)?, BasePos::new(13)?)?;
     ///
     /// assert_eq!(interval.local_position(BasePos::new(7)?), None);
     /// assert_eq!(interval.local_position(BasePos::new(14)?), None);

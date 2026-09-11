@@ -187,7 +187,7 @@ impl<B: Base> MutationWithContext<B> {
             .try_add(offset)
             .expect("mutation interval position overflowed usize");
 
-        BaseInterval::try_new(start, end)
+        BaseInterval::new(start, end)
             .expect("start plus a non-negative offset must form a valid interval")
     }
 
@@ -252,7 +252,7 @@ impl<B: Base> MutationWithContext<B> {
                 .expect("mutated interval position overflowed usize");
 
             Some(
-                BaseInterval::try_new(start, end)
+                BaseInterval::new(start, end)
                     .expect("start plus a non-negative offset must form a valid interval"),
             )
         };
@@ -368,7 +368,7 @@ mod tests {
             DnaSeq::new("ACGTACGT").unwrap(),
             Region::new(
                 "chr1",
-                BaseInterval::try_new(BasePos::new(100).unwrap(), BasePos::new(107).unwrap())
+                BaseInterval::new(BasePos::new(100).unwrap(), BasePos::new(107).unwrap())
                     .unwrap(),
             ),
             Some(Strand::Positive),
@@ -382,7 +382,7 @@ mod tests {
         let mutation = dna_mutation_with_context(103, "T", "A");
         let mutated = DnaSeq::new("ACGAACGT").unwrap();
         let interval =
-            BaseInterval::try_new(BasePos::new(4).unwrap(), BasePos::new(4).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(4).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
@@ -399,7 +399,7 @@ mod tests {
         let mutation = dna_mutation_with_context(103, "TAC", "GCA");
         let mutated = DnaSeq::new("ACGGCAGT").unwrap();
         let interval =
-            BaseInterval::try_new(BasePos::new(4).unwrap(), BasePos::new(6).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(6).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
@@ -416,7 +416,7 @@ mod tests {
         let mutation = dna_mutation_with_context(103, "T", "TGG");
         let mutated = DnaSeq::new("ACGTGGACGT").unwrap();
         let interval =
-            BaseInterval::try_new(BasePos::new(4).unwrap(), BasePos::new(6).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(6).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
@@ -433,7 +433,7 @@ mod tests {
         let mutation = dna_mutation_with_context(103, "TAC", "T");
         let mutated = DnaSeq::new("ACGTGT").unwrap();
         let interval =
-            BaseInterval::try_new(BasePos::new(4).unwrap(), BasePos::new(4).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(4).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
@@ -465,7 +465,7 @@ mod tests {
         let mutation = dna_mutation_with_context(103, "TAC", "G");
         let mutated = DnaSeq::new("ACGGGT").unwrap();
         let interval =
-            BaseInterval::try_new(BasePos::new(4).unwrap(), BasePos::new(4).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(4).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
@@ -482,7 +482,7 @@ mod tests {
         let mutation = dna_mutation_with_context(100, "A", "G");
         let mutated = DnaSeq::new("GCGTACGT").unwrap();
         let interval =
-            BaseInterval::try_new(BasePos::new(1).unwrap(), BasePos::new(1).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(1).unwrap(), BasePos::new(1).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
@@ -499,7 +499,7 @@ mod tests {
         let mutation = dna_mutation_with_context(107, "T", "A");
         let mutated = DnaSeq::new("ACGTACGA").unwrap();
         let interval =
-            BaseInterval::try_new(BasePos::new(8).unwrap(), BasePos::new(8).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(8).unwrap(), BasePos::new(8).unwrap()).unwrap();
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);

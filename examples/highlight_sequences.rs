@@ -15,7 +15,7 @@ fn main() {
 
     // Highlight the 2nd-4th base (1-based; both-end inclusive)
     println!("\nHighlight the interval: 2nd-4th (1-based both-end inclusive) with square brakcets");
-    let interval = BaseInterval::try_new(basepos!(2), basepos!(4)).unwrap();
+    let interval = BaseInterval::new(basepos!(2), basepos!(4)).unwrap();
     println!("{}", seq.format_with_highlight_interval(Some(&interval)));
 
     println!("\nHighlight the interval: 2nd-4th (1-based both-end inclusive) using ansi colour");
@@ -24,7 +24,7 @@ fn main() {
     // Highlight the 5th-100th base (1-based; both-end inclusive). Since seq is shorter than range,
     // will annotate with '>'
     println!("\nHighlight the 5th-100th base with text:");
-    let interval2 = BaseInterval::try_new(
+    let interval2 = BaseInterval::new(
         BasePos::new(5usize).unwrap(),
         BasePos::new(100usize).unwrap(),
     )

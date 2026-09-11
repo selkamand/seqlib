@@ -12,7 +12,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Define a interval (1 based start & end, both-end inclusive)
     let start = basepos!(2);
     let end = basepos!(4);
-    let interval = BaseInterval::try_new(start, end)?;
+    let interval = BaseInterval::new(start, end)?;
 
     // Highlight where this interval is on our sequence
     println!(

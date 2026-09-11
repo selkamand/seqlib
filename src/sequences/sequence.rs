@@ -536,7 +536,7 @@ impl<B: Base> Seq<B> {
 
         let new_interval = match sequence_contains_end_position {
             true => interval.clone(),
-            false => BaseInterval::try_new(interval.start().to_owned(), self.max_pos().to_owned())
+            false => BaseInterval::new(interval.start().to_owned(), self.max_pos().to_owned())
                 .expect("Bug in subseq_covered_slice: creation of new end"),
         };
 
@@ -1229,18 +1229,18 @@ mod tests {
 
         // Interval is 1-based inclusive: 2..=4 => C,G,T
         let interval =
-            BaseInterval::try_new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
         let view = s.subseq_slice(&interval).unwrap();
         assert_eq!(view.to_string_upper(), "CGT");
 
         // single base: 1..=1 => A
-        let r1 = BaseInterval::try_new(BasePos::new(1).unwrap(), BasePos::new(1).unwrap()).unwrap();
+        let r1 = BaseInterval::new(BasePos::new(1).unwrap(), BasePos::new(1).unwrap()).unwrap();
         let one = s.subseq_slice(&r1).unwrap();
         assert_eq!(one.to_string_upper(), "A");
 
         // last base: 6..=6 => C
         let rlast =
-            BaseInterval::try_new(BasePos::new(6).unwrap(), BasePos::new(6).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(6).unwrap(), BasePos::new(6).unwrap()).unwrap();
         let last = s.subseq_slice(&rlast).unwrap();
         assert_eq!(last.to_string_upper(), "C");
     }
@@ -1249,7 +1249,7 @@ mod tests {
     fn subseq_by_interval_returns_expected_owned_seq_and_does_not_modify_original() {
         let s = dna("ACGTAC");
         let interval =
-            BaseInterval::try_new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
 
         let sub = s.subseq(&interval).unwrap();
         assert_eq!(sub.to_string_upper(), "CGT");
@@ -1262,7 +1262,7 @@ mod tests {
     fn subseq_owned_is_independent_of_original() {
         let s = dna("ACGTAC");
         let interval =
-            BaseInterval::try_new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
 
         let mut sub = s.subseq(&interval).unwrap();
         sub.rev_in_place();
@@ -1278,7 +1278,7 @@ mod tests {
     fn subseq_and_subseq_slice_agree_on_content() {
         let s = dna("ACGTAC");
         let interval =
-            BaseInterval::try_new(BasePos::new(2).unwrap(), BasePos::new(5).unwrap()).unwrap(); // 2..=5 => CGTA
+            BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(5).unwrap()).unwrap(); // 2..=5 => CGTA
 
         let view = s.subseq_slice(&interval).unwrap();
         let owned = s.subseq(&interval).unwrap();
@@ -1292,7 +1292,7 @@ mod tests {
 
         // End beyond sequence length (len=6). Interval 1..=7 should fail.
         let interval =
-            BaseInterval::try_new(BasePos::new(1).unwrap(), BasePos::new(7).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(1).unwrap(), BasePos::new(7).unwrap()).unwrap();
         assert!(s.subseq_slice(&interval).is_err());
         assert!(s.subseq(&interval).is_err());
     }
@@ -1303,7 +1303,7 @@ mod tests {
 
         // Interval 2..=4 => C,G,U
         let interval =
-            BaseInterval::try_new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
+            BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
 
         let view = s.subseq_slice(&interval).unwrap();
         assert_eq!(view.to_string_upper(), "CGU");
