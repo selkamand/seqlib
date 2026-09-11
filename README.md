@@ -56,9 +56,8 @@ directly.
 Note that because `Degenerate` sequence types (`IupacDnaSeq`) can have ambiguous bases (like `N`) 
 not all methods will be the same as their `Concrete` sequence equivalents (`DnaSeq`). 
 For example, Iupac sequences have a `is_palindromic_checked()` method that returns a `Result<bool>` with an error 
-when ambiguous bases are present as they prevent us from confidently
-assessing palindrome status either way. In contrast `DnaSeq` has an `ins_palindromic` function that always
-returns `true/false` due to lack of ambiguous bases. 
+when ambiguous bases are present as they prevent us from confidently assessing palindrome status either way. 
+In contrast `DnaSeq` has an `is_palindromic` function that always returns `true/false` due to lack of ambiguous bases. 
 
 ---
 
@@ -99,6 +98,47 @@ For performance-critical or memory-sensitive workflows, `seqlib` also exposes
 explicit **in-place mutation** methods (e.g. `reverse_complement_in_place`). 
 These methods are clearly named and opt-in, allowing callers
 to trade ergonomics for efficiency when appropriate.
+
+---
+
+## Coordinate System
+
+Seqlib considers supports two different ways to number biological sequences: *Interbase* and *Base*
+
+### In-base coordinates (1-based)
+
+Each base is numbered starting at 1
+
+```
+A T A C G
+1 2 3 4 5
+```
+
+So a `BasePos` of `4` refers to a `C` 
+and an `BaseInterval` of 2-4 refers to the 3bp sequence `TAC` (both-end inclusive)
+
+### Interbase coordinates (0-based)
+
+Numbers are assigned to the space between bases (starting at 0).
+
+```
+  A   T   A   C   G
+0   1   2   3   4   5
+    |-----------|
+```
+
+So an `InterbasePos` of `4` doesn't mean much by itself, 
+but packaged into an `InterbaseInterval` (e.g. `1-4`) unambiguously describe the sequence (`TAC`).
+
+Interbase coordinate systems are also great for unambiguosly describing mutated sequences (including insertions) (which happen between bases). 
+This is why (inspired by the GA4GH Variant Representation Specification) `seqlib` mutation data types use interbase coordinates.
+
+
+### Important Notes
+
+seqlib does NOT treat these coord systems interchangeably nor offers generic position / interval traits. 
+Every function MUST specifically decide which position or interval type it expects and returns. 
+This is an intentional design decision.
 
 ---
 
@@ -154,6 +194,7 @@ library.
 - No CLI
 - No alignment, variant calling, or translation logic
 - No soft-masking or case preservation
+- No protein sequence support
 
 `seqlib` is intended to be a **foundation**, not a full bioinformatics toolkit.
 
