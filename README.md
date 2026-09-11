@@ -117,6 +117,11 @@ A T A C G
 So a `BasePos` of `4` refers to a `C` 
 and an `BaseInterval` of 2-4 refers to the 3bp sequence `TAC` (both-end inclusive)
 
+The main limitations of in-base coordinate systems is that insertions happen between residues while deletions and substitutions happen to residues.
+So if using In-base coordinates the position of an insertion must be considered **exclusive** while the position of a deletion/substitution are considered **inclusive**
+The Variant Representation Specification (VRS) [manuscript](https://pmc.ncbi.nlm.nih.gov/articles/PMC8929418/) does a great job of explaining this.
+
+
 ### Interbase coordinates (0-based)
 
 Numbers are assigned to the space between bases (starting at 0).
@@ -130,7 +135,7 @@ Numbers are assigned to the space between bases (starting at 0).
 So an `InterbasePos` of `4` doesn't mean much by itself, 
 but packaged into an `InterbaseInterval` (e.g. `1-4`) unambiguously describe the sequence (`TAC`).
 
-Interbase coordinate systems are also great for unambiguosly describing mutated sequences (including insertions) (which happen between bases). 
+Interbase coordinate systems are also great for unambiguosly describing mutated sequences (including insertions, which happen between bases). 
 This is why (inspired by the GA4GH Variant Representation Specification) `seqlib` mutation data types use interbase coordinates.
 
 
