@@ -7,6 +7,7 @@ use crate::error::CoordError as Error;
 pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 /// A 0-based inter-residue interval  
+///
 /// 0 is the position before the first residue in a sequence
 ///
 /// For the numbering of a the 3 base sequence:
@@ -14,6 +15,9 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 /// 0 1 2 3
 ///
 /// The interval describing the full sequence is 0-3
+///
+/// Empty intervals are valid and represent a boundary between residues. This is useful
+/// for describing insertions, where the reference span has length 0.
 ///
 /// # Examples
 /// ```
@@ -27,7 +31,14 @@ pub struct InterbaseInterval {
 }
 
 impl InterbaseInterval {
-    /// Create a new inter-residue, zero-based [`Interval`]
+    /// Create a new interbase, 0-based [`InterbaseInterval`].
+    ///
+    /// ```text
+    ///       A   T   A   C
+    ///     0   1   2   3   4
+    ///    └─────┘
+    /// ```
+    ///
     ///
     /// ```text
     ///       A   T   A   C
@@ -36,9 +47,10 @@ impl InterbaseInterval {
     /// ```
     ///
     /// # Invariants
-    /// Start must be less than end (no empty intervals allowed)
+    /// Start must be less than or equal to end. Empty intervals are allowed.
+    ///
     pub fn new(start: InterbasePos, end: InterbasePos) -> Result<Self> {
-        if start >= end {
+        if start > end {
             return Err(Error::InvalidIntervalCoords {
                 start: start.get(),
                 end: end.get(),
@@ -51,20 +63,21 @@ impl InterbaseInterval {
 
     /// Create a new inter-residue, zero-based [`Interval`]
     ///
-    /// Skips check that start >  end
+    /// Skips check  `start <= end`. Used in macros.
+    ///
     ///
     /// ```text
     ///       A   T   A   C
     ///     0   1   2   3   4
     ///    └─────┘
     /// ```
-    pub fn new_unchecked(start: InterbasePos, end: InterbasePos) -> Self {
+    pub(crate) fn new_unchecked(start: InterbasePos, end: InterbasePos) -> Self {
         Self { start, end }
     }
 
     /// Creates an interval around `pos` with `left` bases before and `right` bases after it.
     ///
-    /// The bounds saturate at [`Pos::MIN`] and [`Pos::MAX`] rather than failing on
+    /// The bounds saturate at [`InterbasePos::MIN`] and [`InterbasePos::MAX`] rather than failing on
     /// underflow or overflow.
     ///
     /// # Examples
@@ -80,7 +93,7 @@ impl InterbaseInterval {
     /// ```
     pub fn around_position(pos: InterbasePos, left: usize, right: usize) -> Self {
         Self {
-            start: pos.clone().saturating_sub(left),
+            start: pos.saturating_sub(left),
             end: pos.saturating_add(right),
         }
     }

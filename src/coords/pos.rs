@@ -30,7 +30,7 @@ use std::num::NonZeroUsize;
 /// // Define second position
 /// let position = InterbasePos::from(1usize);
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InterbasePos(usize);
 
 impl InterbasePos {
