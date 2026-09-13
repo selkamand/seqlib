@@ -452,10 +452,10 @@ impl<B: Base> Seq<B> {
         Ok(&self.seq[start..end])
     }
 
-    /// Returns a borrowed view of the subsequence defined by a [`Interval`].
+    /// Returns a borrowed view of the subsequence defined by a [`BaseInterval`].
     ///
     /// This method is the biologist-facing counterpart to [`Seq::slice`].
-    /// It interprets `interval` using the coordinate contract of [`Interval`]
+    /// It interprets `interval` using the coordinate contract of [`BaseInterval`]
     /// (1-based coordinates with **both ends included**) and returns a
     /// **read-only, zero-copy** view into the sequence.
     ///
@@ -471,10 +471,10 @@ impl<B: Base> Seq<B> {
     /// # Examples
     ///
     /// ```rust
-    /// use seqlib::{coords::{Pos, Interval}, sequences::{BaseSliceExt, DnaSeq}};
+    /// use seqlib::{coords::{BasePos, BaseInterval}, sequences::{BaseSliceExt, DnaSeq}};
     ///
     /// let seq = DnaSeq::new("ACGTAC").unwrap();
-    /// let interval = Interval::new(Pos::new(2).unwrap(), Pos::new(4).unwrap()).unwrap(); // 2..=4
+    /// let interval = BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap(); // 2..=4
     ///
     /// let slice = seq.subseq_slice(&interval).unwrap();
     /// assert_eq!(slice.to_string_upper(), "CGT");
@@ -487,12 +487,12 @@ impl<B: Base> Seq<B> {
         self.slice(start, end_exclusive)
     }
 
-    /// Returns a borrowed view of the subsequence covered by an [`Interval`].
+    /// Returns a borrowed view of the subsequence covered by an [`BaseInterval`].
     ///
     /// Unlike [`Seq::subseq_slice`] this function never throws an error.
     /// If the interval extends beyond the bounds of the sequence, we just return whatever bases
     /// are covered.
-    /// If the both the start and end of Interval are outsied the sequence bounds, we just return
+    /// If the both the start and end of [`BaseInterval`] are outsied the sequence bounds, we just return
     /// an empty slice.
     ///
     /// Returns a **read-only, zero-copy** view into the sequence plus a revised interval
@@ -509,17 +509,17 @@ impl<B: Base> Seq<B> {
     /// # Examples
     ///
     /// ```rust
-    /// use seqlib::{coords::{Pos, Interval}, sequences::{BaseSliceExt, DnaSeq}, pos};
+    /// use seqlib::{coords::{BasePos, BaseInterval}, sequences::{BaseSliceExt, DnaSeq}, pos};
     ///
     /// let seq = DnaSeq::new("ACGTAC").unwrap();
     ///
     /// // Define interval that extends beyond the sequence
-    /// let interval = Interval::new(Pos::new(2).unwrap(), Pos::new(100).unwrap()).unwrap(); // 2..=4
+    /// let interval = BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(100).unwrap()).unwrap(); // 2..=4
     ///
     /// // Grab the slice of sequence covered by the range and the corresponding clamped interval
     /// let (slice, clamped_interval) = seq.subseq_covered_slice(&interval);
     /// assert_eq!(slice.to_string_upper(), "CGTAC");
-    /// assert_eq!(clamped_interval, Some(Interval::new(pos1!(2), pos1!(6)).unwrap()));
+    /// assert_eq!(clamped_interval, Some(BaseInterval::new(pos1!(2), pos1!(6)).unwrap()));
     /// ```
     pub fn subseq_covered_slice(&self, interval: &BaseInterval) -> (&[B], Option<BaseInterval>) {
         // Convert interval (1-based inclusive) to Rust indices (0-based, end-exclusive).
@@ -544,10 +544,10 @@ impl<B: Base> Seq<B> {
         (slice, Some(new_interval))
     }
 
-    /// Extracts a subsequence defined by an [`Interval`] as a new, independent [`Seq`].
+    /// Extracts a subsequence defined by an [`BaseInterval`] as a new, independent [`Seq`].
     ///
     /// This is the classic “subsequence” operation for biologists:
-    /// - `interval` uses the coordinate contract of [`Interval`]
+    /// - `interval` uses the coordinate contract of [`BaseInterval`]
     ///   (1-based coordinates with **both ends included**)
     /// - the result is an **owned** `Seq<B>` that does not borrow from the original
     ///
@@ -562,10 +562,10 @@ impl<B: Base> Seq<B> {
     /// # Examples
     ///
     /// ```rust
-    /// use seqlib::{coords::{Pos, Interval}, sequences::DnaSeq};
+    /// use seqlib::{coords::{BasePos, BaseInterval}, sequences::DnaSeq};
     ///
     /// let seq = DnaSeq::new("ACGTAC").unwrap();
-    /// let interval = Interval::new(Pos::new(2).unwrap(), Pos::new(4).unwrap()).unwrap(); // 2..=4
+    /// let interval = BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap(); // 2..=4
     ///
     /// let sub = seq.subseq(&interval).unwrap();
     /// assert_eq!(sub.to_string(), "CGT");
@@ -612,7 +612,7 @@ impl<B: Base> Seq<B> {
         out
     }
 
-    /// Highlight a base using a 1-based sequence-local [`Pos`].
+    /// Highlight a base using a 1-based sequence-local [`BasePos`].
     ///
     /// If the position is out of bounds, no base is highlighted.
     pub fn format_with_highlight_pos(&self, pos: Option<BasePos>) -> String {
@@ -1227,7 +1227,7 @@ mod tests {
     fn subseq_slice_by_interval_returns_expected_view_inclusive_1based() {
         let s = dna("ACGTAC");
 
-        // Interval is 1-based inclusive: 2..=4 => C,G,T
+        // BaseInterval is 1-based inclusive: 2..=4 => C,G,T
         let interval =
             BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
         let view = s.subseq_slice(&interval).unwrap();
@@ -1239,8 +1239,7 @@ mod tests {
         assert_eq!(one.to_string_upper(), "A");
 
         // last base: 6..=6 => C
-        let rlast =
-            BaseInterval::new(BasePos::new(6).unwrap(), BasePos::new(6).unwrap()).unwrap();
+        let rlast = BaseInterval::new(BasePos::new(6).unwrap(), BasePos::new(6).unwrap()).unwrap();
         let last = s.subseq_slice(&rlast).unwrap();
         assert_eq!(last.to_string_upper(), "C");
     }
@@ -1290,7 +1289,7 @@ mod tests {
     fn subseq_slice_errors_when_interval_out_of_bounds() {
         let s = dna("ACGTAC");
 
-        // End beyond sequence length (len=6). Interval 1..=7 should fail.
+        // End beyond sequence length (len=6). BaseInterval 1..=7 should fail.
         let interval =
             BaseInterval::new(BasePos::new(1).unwrap(), BasePos::new(7).unwrap()).unwrap();
         assert!(s.subseq_slice(&interval).is_err());
@@ -1301,7 +1300,7 @@ mod tests {
     fn subseq_methods_work_for_rna_too() {
         let s = rna("ACGUAC"); // length 6
 
-        // Interval 2..=4 => C,G,U
+        // BaseInterval 2..=4 => C,G,U
         let interval =
             BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
 
