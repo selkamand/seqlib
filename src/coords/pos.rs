@@ -275,13 +275,6 @@ impl BasePos {
         }
     }
 
-    /// Construct a [`BasePos`] from a [`NonZeroUsize`]
-    ///
-    /// This is infallable because every `NonZeroUsize` is a valid 1-based position
-    pub fn from_nonzero(position: NonZeroUsize) -> Self {
-        Self(position)
-    }
-
     /// Return the underlying non-zero 1-based coordinate.
     pub const fn as_nonzero(self) -> NonZeroUsize {
         self.0
@@ -356,7 +349,8 @@ impl TryFrom<u32> for BasePos {
 
 impl From<NonZeroUsize> for BasePos {
     fn from(value: NonZeroUsize) -> Self {
-        Self::from_nonzero(value)
+        // Can just directly convert because every valid NonZeroUsize is a valid BasePos
+        Self(value)
     }
 }
 
