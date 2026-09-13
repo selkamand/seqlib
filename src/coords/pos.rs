@@ -145,7 +145,7 @@ impl std::fmt::Display for InterbasePos {
 ///
 /// Each base is numbered starting at 1
 ///
-/// ```{text}
+/// ```text
 /// A T A C G
 /// 1 2 3 4 5
 /// ```
@@ -182,7 +182,7 @@ impl BasePos {
         }
     }
 
-    /// Create a Pos - compile time panic if it fails. Powers the pos! macro
+    /// Create a [`BasePos`] - compile time panic if it fails. Powers the `basepos!` macro.
     pub const fn new_panic(position: usize) -> Self {
         match NonZeroUsize::new(position) {
             Some(validpos) => Self(validpos),
@@ -198,7 +198,7 @@ impl BasePos {
     }
 
     /// An unchecked constructor that works because all NonZeroUsize values are valid positions.
-    /// Powers the pos! macro
+    /// Powers the `basepos!` macro
     pub const fn new_unchecked(position: NonZeroUsize) -> Self {
         BasePos(position)
     }
@@ -207,7 +207,7 @@ impl BasePos {
         self.0.get()
     }
 
-    /// Return the position as a 0based index (e.g. for indexnig into a `Seq` object)
+    /// Return the position as a 0-based index (e.g. for indexnig into a `Seq` object)
     pub fn as_0based_index(&self) -> usize {
         self.get().saturating_sub(1)
     }
@@ -222,7 +222,7 @@ impl BasePos {
         BasePos::new(v).ok()
     }
 
-    /// Add an offset, saturating at `Pos::MAX` on overflow.
+    /// Add an offset, saturating at `BasePos::MAX` on overflow.
     pub fn saturating_add(self, offset: usize) -> Self {
         let v = self.get().saturating_add(offset);
         // `v` is never 0 here, so `new` cannot fail.
@@ -230,7 +230,7 @@ impl BasePos {
         BasePos::new(v).unwrap_or(BasePos::MAX)
     }
 
-    /// Subtract an offset, saturating at `Pos::MIN` (Position 1) on underflow.
+    /// Subtract an offset, saturating at `BasePos::MIN` (Position 1) on underflow.
     pub fn saturating_sub(self, offset: usize) -> Self {
         let v = self.get().saturating_sub(offset);
         BasePos::new(v).unwrap_or(BasePos::MIN)
@@ -275,7 +275,7 @@ impl BasePos {
         }
     }
 
-    /// Construct a [`Pos`] from a [`NonZeroUsize`]
+    /// Construct a [`BasePos`] from a [`NonZeroUsize`]
     ///
     /// This is infallable because every `NonZeroUsize` is a valid 1-based position
     pub fn from_nonzero(position: NonZeroUsize) -> Self {
@@ -302,9 +302,9 @@ impl Default for BasePos {
 impl TryFrom<u64> for BasePos {
     type Error = Error;
 
-    /// Fallibly convert a `u64` into a 1-based [`Pos`].
+    /// Fallibly convert a `u64` into a 1-based [`BasePos`].
     ///
-    /// This conversion is **platform dependent** because [`Pos`] stores a `NonZeroUsize`.
+    /// This conversion is **platform dependent** because [`BasePos`] stores a `NonZeroUsize`.
     /// On targets where `usize` is smaller than `u64` (e.g. 32-bit or 16-bit), large
     /// values may not be representable and will be rejected.
     ///
@@ -331,7 +331,7 @@ impl TryFrom<u64> for BasePos {
 impl TryFrom<u32> for BasePos {
     type Error = Error;
 
-    /// Fallibly convert a `u32` into a 1-based [`Pos`].
+    /// Fallibly convert a `u32` into a 1-based [`BasePos`].
     ///
     /// This conversion is always safe on 32-bit and 64-bit targets, but may fail on
     /// narrower targets (e.g. 16-bit) where `usize::MAX < u32::MAX`.
