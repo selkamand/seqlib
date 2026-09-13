@@ -6,7 +6,7 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 
 use std::num::NonZeroUsize;
 
-/// A position in a zero-base inter-base coordinate system
+/// A position in a 0-based interbase coordinate system
 ///
 /// Numbers are assigned to the space between bases (starting at 0).
 ///
@@ -15,9 +15,11 @@ use std::num::NonZeroUsize;
 /// 0   1   2   3   4   5
 /// ```
 ///
-/// So an [`InterbasePos`] of `4` doesn't mean much by itself, but packaged into an [`InterbaseInterval`] (e.g. `1-4`) unambiguously describe the sequence (`TAC`).
+/// So an [`InterbasePos`] of `4` doesn't mean much by itself, but packaged into an
+/// [`InterbaseInterval`](crate::coords::InterbaseInterval) (e.g. `1-4`) unambiguously describe the sequence (`TAC`).
 ///
-/// Interbase coordinate systems are also great for unambiguosly describing mutated sequences (including insertions) (which happen between bases).
+/// Interbase coordinate systems are also great for unambiguosly describing mutated sequences, including insertions, which happen between bases.
+///
 /// This is why (inspired by the GA4GH Variant Representation Specification) `seqlib` mutation data types use interbase coordinates.
 ///
 /// # Example
