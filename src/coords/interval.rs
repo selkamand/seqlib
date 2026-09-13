@@ -161,36 +161,13 @@ impl InterbaseInterval {
         self.end().get() - self.start().get()
     }
 
-    /// Returns the number of positions spanned by the interval.
-    ///
-    /// Because intervals are always non-empty min length is 1.
-    ///
-    /// # Examples
-    ///
-    /// ```
-    /// use seqlib::coords::{InterbaseInterval, InterbasePos};
-    /// use std::num::NonZeroUsize;
-    /// let interval = InterbaseInterval::new(InterbasePos::from(1), InterbasePos::from(5)).unwrap();
-    ///
-    /// assert_eq!(interval.len_nonzero(), NonZeroUsize::new(4).unwrap());
-    /// ````
-    ///
-    pub fn len_nonzero(&self) -> NonZeroUsize {
-        match NonZeroUsize::try_from(self.len()) {
-            Ok(val) => val,
-            Err(_) => unreachable!(
-                "Implementation mistake: len_nonzero method of interval should never error because len() of interval is always >=1 so long as constructor properly asserts end > start and len() method calculates length correctly. Please report this error message on this repos github"
-            ),
-        }
-    }
-
     /// Converts a feature interval (`original`) to offsets within the region `self`.
     ///
     /// Use this to locate a variant or annotation in a sequence extracted from `self`.
     /// Both inputs use parent-sequence coordinates; the returned interval treats
     /// the start of `self` as position `0`. (See example for clearer examples)
     ///
-    /// Returns `None` unless `original` is fully contained within `self`.Convert a global interval into a local interval
+    /// Returns `None` unless `original` is fully contained within `self`.
     ///
     /// # Examples
     ///  
@@ -216,7 +193,7 @@ impl InterbaseInterval {
     /// // we use the local_interval method
     /// let local = window.local_interval(variant).unwrap();
     ///
-    /// assert_eq!(local, InterbaseInterval::new(InterbasePos::from(2), InterbasePos::from(3))?);
+    /// assert_eq!(local, InterbaseInterval::new(InterbasePos::from(1), InterbasePos::from(2))?);
     ///
     /// # Ok::<(), seqlib::error::CoordError>(())    
     /// ```
@@ -291,7 +268,7 @@ impl BaseInterval {
 
     /// Creates an interval around `pos` with `left` bases before and `right` bases after it.
     ///
-    /// The bounds saturate at [`Pos::MIN`] and [`Pos::MAX`] rather than failing on
+    /// The bounds saturate at [`BasePos::MIN`] and [`BasePos::MAX`] rather than failing on
     /// underflow or overflow.
     ///
     /// # Examples
@@ -344,7 +321,9 @@ impl BaseInterval {
         &self.end
     }
 
-    /// Check if region is empty. Always returns false as regions are never empty, by definition they contain at least 1 base)
+    /// Check if the interval is empty.
+    ///
+    /// Always returns false because base intervals are non-empty by construction.
     pub fn is_empty(&self) -> bool {
         false
     }
@@ -379,7 +358,7 @@ impl BaseInterval {
     /// use std::num::NonZeroUsize;
     /// let interval = BaseInterval::new(BasePos::new(2usize)?, BasePos::new(2usize)?).unwrap();
     ///
-    /// assert_eq!(interval.len_nonzero(), NonZeroUsize::new(4).unwrap());
+    /// assert_eq!(interval.len_nonzero(), NonZeroUsize::new(1).unwrap());
     /// # Ok::<(), seqlib::error::CoordError>(())
     /// ````
     ///
@@ -413,7 +392,7 @@ impl BaseInterval {
 
     /// Returns the 1-based local position of `pos` within the interval.
     ///
-    /// The returned [`Pos`] is suitable for APIs that expect a sequence-local
+    /// The returned [`BasePos`] is suitable for APIs that expect a sequence-local
     /// coordinate, such as the `anchor` argument of
     /// [`MutationWithContext::new`](crate::mutations::MutationWithContext::new).
     /// Returns `None` if `pos` is outside the interval.
