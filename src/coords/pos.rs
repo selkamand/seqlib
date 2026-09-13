@@ -10,7 +10,7 @@ use std::num::NonZeroUsize;
 ///
 /// Numbers are assigned to the space between bases (starting at 0).
 ///
-/// ```{text}
+/// ```text
 ///   A   T   A   C   G
 /// 0   1   2   3   4   5
 /// ```
@@ -23,6 +23,7 @@ use std::num::NonZeroUsize;
 /// This is why (inspired by the GA4GH Variant Representation Specification) `seqlib` mutation data types use interbase coordinates.
 ///
 /// # Example
+///
 /// ```
 /// use seqlib::coords::InterbasePos;
 ///
@@ -30,7 +31,8 @@ use std::num::NonZeroUsize;
 /// let position = InterbasePos::from(0usize);
 ///
 /// // Define second position
-/// let position = InterbasePos::from(1usize);
+/// let position2 = InterbasePos::from(1usize);
+///
 /// ```
 #[derive(Debug, Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct InterbasePos(usize);
