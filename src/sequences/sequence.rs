@@ -2,7 +2,7 @@ use crate::base::{
     Alphabet, Base, ChemClass, ConcreteBase, DegenerateBase, DnaBase, IupacDnaBase, IupacRnaBase,
     RnaBase,
 };
-use crate::coords::{BaseInterval, BasePos};
+use crate::coords::{BaseInterval, BasePos, InterbasePos};
 use crate::error::SequenceError;
 use crate::render::SeqStyler;
 use core::fmt;
@@ -332,9 +332,29 @@ impl<B: Base> Seq<B> {
         self.seq.is_empty()
     }
 
-    /// Get the Position representing the end of the sequence
+    /// Get the in-base position representing the end of the sequence
+    ///
+    /// For example the max [`BasePos`] of the following 4bp sequence is 4.
+    ///
+    /// ```text
+    /// A  T  T  G   
+    /// 1  2  3  4
+    /// ```
     pub fn max_pos(&self) -> BasePos {
         BasePos::new(self.len()).unwrap_or_default()
+    }
+
+    /// Get the interbase position representing the end of the sequence
+    ///
+    /// For example the max [`InterbasePos`] of the following length-4 sequence is 4.
+    ///
+    /// ```text
+    ///   A   T   T   G   
+    /// 0   1   2   3   4
+    ///
+    /// ```
+    pub fn max_pos_interbase(&self) -> InterbasePos {
+        InterbasePos::from(self.len())
     }
 
     /// Does interval span a range that exists in this sequence. If sequence is empty no intervals are valid
