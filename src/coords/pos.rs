@@ -417,7 +417,7 @@ macro_rules! basepos {
 ///
 /// # Examples
 /// ```
-/// use seqlib::coords::{BasePos};
+/// use seqlib::coords::{InterbasePos};
 /// use seqlib::interbasepos;
 ///
 /// const P: InterbasePos = interbasepos!(123);
@@ -426,7 +426,7 @@ macro_rules! basepos {
 #[macro_export]
 macro_rules! interbasepos {
     ($lit:literal) => {{
-        const P: InterbasePos = InterbasePos::new_panic($lit);
+        const P: InterbasePos = InterbasePos::new($lit);
         P
     }};
 }
