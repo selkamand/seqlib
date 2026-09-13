@@ -529,7 +529,7 @@ impl<B: Base> Seq<B> {
     /// # Examples
     ///
     /// ```rust
-    /// use seqlib::{coords::{BasePos, BaseInterval}, sequences::{BaseSliceExt, DnaSeq}, pos};
+    /// use seqlib::{coords::{BasePos, BaseInterval}, sequences::{BaseSliceExt, DnaSeq}};
     ///
     /// let seq = DnaSeq::new("ACGTAC").unwrap();
     ///
@@ -539,7 +539,7 @@ impl<B: Base> Seq<B> {
     /// // Grab the slice of sequence covered by the range and the corresponding clamped interval
     /// let (slice, clamped_interval) = seq.subseq_covered_slice(&interval);
     /// assert_eq!(slice.to_string_upper(), "CGTAC");
-    /// assert_eq!(clamped_interval, Some(BaseInterval::new(pos1!(2), pos1!(6)).unwrap()));
+    /// assert_eq!(clamped_interval, Some(BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(6).unwrap()).unwrap()));
     /// ```
     pub fn subseq_covered_slice(&self, interval: &BaseInterval) -> (&[B], Option<BaseInterval>) {
         // Convert interval (1-based inclusive) to Rust indices (0-based, end-exclusive).
