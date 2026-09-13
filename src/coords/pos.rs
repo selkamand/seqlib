@@ -64,12 +64,13 @@ impl InterbasePos {
 
     /// Add an offset, saturating at `InterbasePos::MAX` on overflow.
     pub fn saturating_add(self, offset: usize) -> Self {
-        // Pos::MAX is usize::MAX so we can just use usize saturating_add
+        // InterbasePos::MAX is usize::MAX so we can just use usize saturating_add.
         Self::from(self.get().saturating_add(offset))
     }
 
     /// Subtract an offset, saturating at `InterbasePos::MIN` on underflow.
     pub fn saturating_sub(self, offset: usize) -> Self {
+        // InterbasePos::MIN is usize::MIN so we can just use usize saturating_sub.
         Self::from(self.get().saturating_sub(offset))
     }
 
@@ -78,6 +79,7 @@ impl InterbasePos {
     /// # Errors
     /// Returns [`Error::PositionOverflowAdd`] if `self + offset` cannot be represented
     /// on this platform.
+    ///
     pub fn try_add(self, offset: usize) -> Result<Self> {
         match self.get().checked_add(offset) {
             Some(p) => Ok(Self::from(p)),
