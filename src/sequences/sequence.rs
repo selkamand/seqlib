@@ -332,7 +332,7 @@ impl<B: Base> Seq<B> {
         self.seq.is_empty()
     }
 
-    /// Get the in-base position representing the end of the sequence
+    /// Get the in-base position representing the end of the sequence (1-based start)
     ///
     /// For example the max [`BasePos`] of the following 4bp sequence is 4.
     ///
@@ -340,11 +340,11 @@ impl<B: Base> Seq<B> {
     /// A  T  T  G   
     /// 1  2  3  4
     /// ```
-    pub fn max_pos(&self) -> BasePos {
+    pub fn max_base_position(&self) -> BasePos {
         BasePos::new(self.len()).unwrap_or_default()
     }
 
-    /// Get the interbase position representing the end of the sequence
+    /// Get the interbase position representing the end of the sequence (0-based start)
     ///
     /// For example the max [`InterbasePos`] of the following length-4 sequence is 4.
     ///
@@ -353,7 +353,7 @@ impl<B: Base> Seq<B> {
     /// 0   1   2   3   4
     ///
     /// ```
-    pub fn max_pos_interbase(&self) -> InterbasePos {
+    pub fn max_interbase_position(&self) -> InterbasePos {
         InterbasePos::from(self.len())
     }
 
@@ -361,14 +361,14 @@ impl<B: Base> Seq<B> {
     pub fn is_interval_valid(&self, interval: &BaseInterval) -> bool {
         match self.is_empty() {
             true => false,
-            false => *interval.end() <= self.max_pos(),
+            false => *interval.end() <= self.max_base_position(),
         }
     }
 
     /// Does the sequence contain a particular position, or does it fall outside of the sequence
     /// length
     pub fn sequence_contains_position(&self, pos: BasePos) -> bool {
-        pos <= self.max_pos()
+        pos <= self.max_base_position()
     }
 
     /// Returns `true` if the middle base of the sequence is a pyrimidine.
@@ -556,8 +556,11 @@ impl<B: Base> Seq<B> {
 
         let new_interval = match sequence_contains_end_position {
             true => interval.clone(),
-            false => BaseInterval::new(interval.start().to_owned(), self.max_pos().to_owned())
-                .expect("Bug in subseq_covered_slice: creation of new end"),
+            false => BaseInterval::new(
+                interval.start().to_owned(),
+                self.max_base_position().to_owned(),
+            )
+            .expect("Bug in subseq_covered_slice: creation of new end"),
         };
 
         let slice = self.slice(start, end_exclusive).expect("Bug in subseq_covered_slice: slicing should never fail because interval end should be clamped to seq size in above code");
