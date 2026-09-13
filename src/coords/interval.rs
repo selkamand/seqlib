@@ -131,14 +131,15 @@ impl InterbaseInterval {
         &self.end
     }
 
-    /// Check if region is empty. Always returns false as regions are never empty, by definition they contain at least 1 base)
+    /// Check if interval is empty.
     pub fn is_empty(&self) -> bool {
-        false
+        self.start == self.end
     }
 
-    /// Returns the number of positions spanned by the interval.
+    /// Returns the number of bases spanned by the interval.
     ///
     /// Because intervals are interbase, `0-1` has length 1.
+    ///
     /// ```text
     ///       A   T   A   C
     ///     0   1   2   3   4
