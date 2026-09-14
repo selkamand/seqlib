@@ -27,7 +27,7 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 /// use seqlib::coords::{InterbaseInterval, InterbasePos};
 /// let i = InterbaseInterval::new(InterbasePos::from(0), InterbasePos::from(3));
 /// ```
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct InterbaseInterval {
     start: InterbasePos,
     end: InterbasePos,
@@ -240,7 +240,7 @@ impl From<InterbaseInterval> for std::ops::Range<usize> {
 
 /// A genomic interval (Start & End)
 /// Both are 1-based and both-end inclusive
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct BaseInterval {
     start: BasePos,
     end: BasePos,
