@@ -1305,17 +1305,17 @@ mod tests {
         // BaseInterval is 1-based inclusive: 2..=4 => C,G,T
         let interval =
             BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
-        let view = s.subseq_slice(&interval).unwrap();
+        let view = s.slice_by_base_interval(&interval).unwrap();
         assert_eq!(view.to_string_upper(), "CGT");
 
         // single base: 1..=1 => A
         let r1 = BaseInterval::new(BasePos::new(1).unwrap(), BasePos::new(1).unwrap()).unwrap();
-        let one = s.subseq_slice(&r1).unwrap();
+        let one = s.slice_by_base_interval(&r1).unwrap();
         assert_eq!(one.to_string_upper(), "A");
 
         // last base: 6..=6 => C
         let rlast = BaseInterval::new(BasePos::new(6).unwrap(), BasePos::new(6).unwrap()).unwrap();
-        let last = s.subseq_slice(&rlast).unwrap();
+        let last = s.slice_by_base_interval(&rlast).unwrap();
         assert_eq!(last.to_string_upper(), "C");
     }
 
@@ -1354,7 +1354,7 @@ mod tests {
         let interval =
             BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(5).unwrap()).unwrap(); // 2..=5 => CGTA
 
-        let view = s.subseq_slice(&interval).unwrap();
+        let view = s.slice_by_base_interval(&interval).unwrap();
         let owned = s.subseq_by_base_interval(&interval).unwrap();
 
         assert_eq!(view.to_string_upper(), owned.to_string_upper());
@@ -1367,7 +1367,7 @@ mod tests {
         // End beyond sequence length (len=6). BaseInterval 1..=7 should fail.
         let interval =
             BaseInterval::new(BasePos::new(1).unwrap(), BasePos::new(7).unwrap()).unwrap();
-        assert!(s.subseq_slice(&interval).is_err());
+        assert!(s.slice_by_base_interval(&interval).is_err());
         assert!(s.subseq_by_base_interval(&interval).is_err());
     }
 
@@ -1379,7 +1379,7 @@ mod tests {
         let interval =
             BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
 
-        let view = s.subseq_slice(&interval).unwrap();
+        let view = s.slice_by_base_interval(&interval).unwrap();
         assert_eq!(view.to_string_upper(), "CGU");
 
         let owned = s.subseq_by_base_interval(&interval).unwrap();
