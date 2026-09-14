@@ -23,13 +23,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     // Grab the subsequence (owned copy)
-    let subseq = seq.subseq(&interval)?;
+    let subseq = seq.subseq_by_base_interval(&interval)?;
 
     // Print out the slice with
     println!("{subseq} <- sub-sequence");
 
-    // If you just want to borrow a slice, use the subseq_slice method
-    let subseq_slice = seq.subseq_slice(&interval)?;
+    // If you just want to borrow a slice, use the slice_by.. methods
+    let subseq_slice = seq.slice_by_base_interval(&interval)?;
     println!("{} <- sub-sequence", subseq_slice.to_string_upper());
 
     Ok(())

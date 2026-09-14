@@ -198,7 +198,7 @@ impl<B: Base> MutationWithContext<B> {
     fn reference_bases_viable(&self) -> bool {
         let interval = self.mutated_interval();
 
-        let Ok(mutated_bases) = self.context().seq().subseq(&interval) else {
+        let Ok(mutated_bases) = self.context().seq().subseq_by_base_interval(&interval) else {
             return false;
         };
 
@@ -368,8 +368,7 @@ mod tests {
             DnaSeq::new("ACGTACGT").unwrap(),
             Region::new(
                 "chr1",
-                BaseInterval::new(BasePos::new(100).unwrap(), BasePos::new(107).unwrap())
-                    .unwrap(),
+                BaseInterval::new(BasePos::new(100).unwrap(), BasePos::new(107).unwrap()).unwrap(),
             ),
             Some(Strand::Positive),
         );
