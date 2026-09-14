@@ -2,10 +2,11 @@ use crate::base::{
     Alphabet, Base, ChemClass, ConcreteBase, DegenerateBase, DnaBase, IupacDnaBase, IupacRnaBase,
     RnaBase,
 };
-use crate::coords::{BaseInterval, BasePos, InterbasePos};
+use crate::coords::{BaseInterval, BasePos, InterbaseInterval, InterbasePos};
 use crate::error::SequenceError;
 use crate::render::SeqStyler;
 use core::fmt;
+use std::ops::Range;
 
 pub(crate) type Result<T> = std::result::Result<T, SequenceError>;
 
@@ -141,6 +142,7 @@ impl<B: Base> Seq<B> {
     }
 
     /// Safe mutable indexing, if Seq is mutable internally.
+    /// idx is a 0-based in-base position
     pub fn get_mut(&mut self, idx: usize) -> Option<&mut B> {
         self.as_mut_slice().get_mut(idx)
     }
@@ -472,6 +474,23 @@ impl<B: Base> Seq<B> {
         Ok(&self.seq[start..end])
     }
 
+    /// Slice by a rust style [`Range`]
+    pub fn slice_by_range(&self, range: Range<usize>) -> Result<&[B]> {
+        let start = range.start;
+        let end = range.end;
+
+        self.seq.get(range).ok_or(SequenceError::InvalidSlice {
+            start,
+            end,
+            len: self.len(),
+        })
+    }
+
+    /// Slice by an interbase interval [`InterbaseInterval`]
+    pub fn slice_by_interbase_interval(&self, interval: &InterbaseInterval) -> Result<&[B]> {
+        self.slice_by_range(interval.into())
+    }
+
     /// Returns a borrowed view of the subsequence defined by a [`BaseInterval`].
     ///
     /// This method is the biologist-facing counterpart to [`Seq::slice`].
@@ -496,15 +515,11 @@ impl<B: Base> Seq<B> {
     /// let seq = DnaSeq::new("ACGTAC").unwrap();
     /// let interval = BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap(); // 2..=4
     ///
-    /// let slice = seq.subseq_slice(&interval).unwrap();
+    /// let slice = seq.subseq_slice_by_base_interval(&interval).unwrap();
     /// assert_eq!(slice.to_string_upper(), "CGT");
     /// ```
-    pub fn subseq_slice(&self, interval: &BaseInterval) -> Result<&[B]> {
-        // Convert interval (1-based inclusive) to Rust indices (0-based, end-exclusive).
-        let start = interval.start().as_0based_index();
-        let end_exclusive = interval.end().as_0based_index() + 1;
-
-        self.slice(start, end_exclusive)
+    pub fn slice_by_base_interval(&self, interval: &BaseInterval) -> Result<&[B]> {
+        self.slice_by_range(interval.into())
     }
 
     /// Returns a borrowed view of the subsequence covered by an [`BaseInterval`].
@@ -555,7 +570,7 @@ impl<B: Base> Seq<B> {
         };
 
         let new_interval = match sequence_contains_end_position {
-            true => interval.clone(),
+            true => *interval,
             false => BaseInterval::new(
                 interval.start().to_owned(),
                 self.max_base_position().to_owned(),
@@ -590,16 +605,53 @@ impl<B: Base> Seq<B> {
     /// let seq = DnaSeq::new("ACGTAC").unwrap();
     /// let interval = BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap(); // 2..=4
     ///
-    /// let sub = seq.subseq(&interval).unwrap();
+    /// let sub = seq.subseq_by_base_interval(&interval).unwrap();
     /// assert_eq!(sub.to_string(), "CGT");
     /// assert_eq!(seq.to_string(), "ACGTAC"); // original unchanged
     /// ```
-    pub fn subseq(&self, interval: &BaseInterval) -> Result<Seq<B>> {
-        let slice = self.subseq_slice(interval)?;
+    pub fn subseq_by_base_interval(&self, interval: &BaseInterval) -> Result<Seq<B>> {
+        let slice = self.slice_by_base_interval(interval)?;
+
         Ok(Seq {
             seq: slice.to_vec(),
         })
     }
+
+    /// Extracts a subsequence defined by an [`InterbaseInterval`] as a new, independent [`Seq`].
+    ///
+    /// This is the classic “subsequence” operation for biologists:
+    /// - `interval` uses the coordinate contract of [`InterbaseInterval`]
+    ///   (0-based interbase coordinates)
+    /// - the result is an **owned** `Seq<B>` that does not borrow from the original
+    ///
+    /// The returned subsequence:
+    /// - can be stored, returned, or mutated independently
+    /// - does not change the original sequence
+    ///
+    /// # Errors
+    ///
+    /// Returns an error if the interval falls outside the bounds of the sequence.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use seqlib::{coords::{InterbasePos, InterbaseInterval}, sequences::DnaSeq};
+    ///
+    /// let seq = DnaSeq::new("ACGTAC").unwrap();
+    /// let interval = InterbaseInterval::new(InterbasePos::from(2usize), InterbasePos::from(4usize);
+    ///
+    /// let sub = seq.subseq_by_interbase_interval(&interval).unwrap();
+    /// assert_eq!(sub.to_string(), "GT");
+    /// assert_eq!(seq.to_string(), "ACGTAC"); // original unchanged
+    /// ```
+    pub fn subseq_by_interbase_interval(&self, interval: &InterbaseInterval) -> Result<Seq<B>> {
+        let slice = self.slice_by_interbase_interval(interval)?;
+
+        Ok(Seq {
+            seq: slice.to_vec(),
+        })
+    }
+
     // Conversions to other data types
 
     /// Returns the sequence as a `String` using uppercase IUPAC symbols.
@@ -1273,7 +1325,7 @@ mod tests {
         let interval =
             BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
 
-        let sub = s.subseq(&interval).unwrap();
+        let sub = s.subseq_by_base_interval(&interval).unwrap();
         assert_eq!(sub.to_string_upper(), "CGT");
 
         // original unchanged
@@ -1286,7 +1338,7 @@ mod tests {
         let interval =
             BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
 
-        let mut sub = s.subseq(&interval).unwrap();
+        let mut sub = s.subseq_by_base_interval(&interval).unwrap();
         sub.rev_in_place();
 
         // subseq changed
@@ -1303,7 +1355,7 @@ mod tests {
             BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(5).unwrap()).unwrap(); // 2..=5 => CGTA
 
         let view = s.subseq_slice(&interval).unwrap();
-        let owned = s.subseq(&interval).unwrap();
+        let owned = s.subseq_by_base_interval(&interval).unwrap();
 
         assert_eq!(view.to_string_upper(), owned.to_string_upper());
     }
@@ -1316,7 +1368,7 @@ mod tests {
         let interval =
             BaseInterval::new(BasePos::new(1).unwrap(), BasePos::new(7).unwrap()).unwrap();
         assert!(s.subseq_slice(&interval).is_err());
-        assert!(s.subseq(&interval).is_err());
+        assert!(s.subseq_by_base_interval(&interval).is_err());
     }
 
     #[test]
@@ -1330,7 +1382,7 @@ mod tests {
         let view = s.subseq_slice(&interval).unwrap();
         assert_eq!(view.to_string_upper(), "CGU");
 
-        let owned = s.subseq(&interval).unwrap();
+        let owned = s.subseq_by_base_interval(&interval).unwrap();
         assert_eq!(owned.to_string_upper(), "CGU");
 
         // Rust slice 1..4 => C,G,U
