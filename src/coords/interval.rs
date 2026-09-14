@@ -238,6 +238,11 @@ impl From<InterbaseInterval> for std::ops::Range<usize> {
     }
 }
 
+impl From<&InterbaseInterval> for std::ops::Range<usize> {
+    fn from(val: &InterbaseInterval) -> Self {
+        val.start.get()..val.end.get()
+    }
+}
 /// A genomic interval (Start & End)
 /// Both are 1-based and both-end inclusive
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -486,6 +491,12 @@ impl Default for BaseInterval {
 ///
 impl From<BaseInterval> for std::ops::Range<usize> {
     fn from(value: BaseInterval) -> Self {
+        value.start.get() - 1..value.end.get()
+    }
+}
+
+impl From<&BaseInterval> for std::ops::Range<usize> {
+    fn from(value: &BaseInterval) -> Self {
         value.start.get() - 1..value.end.get()
     }
 }
