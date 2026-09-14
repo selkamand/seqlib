@@ -11,8 +11,11 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 /// 0 is the position before the first residue in a sequence
 ///
 /// For the numbering of a the 3 base sequence:
+///
+/// ```text
 ///  A C T
 /// 0 1 2 3
+/// ```
 ///
 /// The interval describing the full sequence is 0-3
 ///
@@ -214,6 +217,24 @@ impl InterbaseInterval {
         );
 
         Some(local_interval)
+    }
+}
+
+/// Converts an [`InterbaseInterval`] into the equivalent zero-based,
+/// half open suitable for indexing into a rust array. Note rust Range is effectively equivalent to
+/// InterbaseIntervals, so conversion is very straightforward
+///
+/// ```text
+/// Seq:                    A C T
+/// InterbasePos:          0 1 2 3
+/// Rust:                   0 1 2 [3]
+/// InterbaseInterval 1-3:    ---
+/// Rust Range 1..3:          ---
+/// ```
+///
+impl From<InterbaseInterval> for std::ops::Range<usize> {
+    fn from(val: InterbaseInterval) -> Self {
+        val.start.get()..val.end.get()
     }
 }
 
@@ -449,5 +470,22 @@ impl Default for BaseInterval {
             start: BasePos::MIN,
             end: BasePos::MIN,
         }
+    }
+}
+
+/// Converts an [`BaseInterval`] into the equivalent zero-based,
+/// half-open interval suitable for indexing into a rust array.
+///
+/// ```text
+/// Seq:                 A C T
+/// BasePos:             1 2 3
+/// Rust:                0 1 2
+/// BaseInterval 2-3:      ---
+/// Rust Range 1..3:       ---
+/// ```
+///
+impl From<BaseInterval> for std::ops::Range<usize> {
+    fn from(value: BaseInterval) -> Self {
+        value.start.get() - 1..value.end.get()
     }
 }
