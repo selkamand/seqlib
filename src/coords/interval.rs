@@ -257,6 +257,12 @@ impl std::fmt::Display for BaseInterval {
     }
 }
 
+impl std::fmt::Display for InterbaseInterval {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}-{}", self.start, self.end)
+    }
+}
+
 impl BaseInterval {
     /// Creates a 1-based both-end inclusive residue interval from `start` to `end`
     ///
