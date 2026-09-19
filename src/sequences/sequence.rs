@@ -690,31 +690,105 @@ impl<B: Base> Seq<B> {
     /// Highlight a base using a 1-based sequence-local [`BasePos`].
     ///
     /// If the position is out of bounds, no base is highlighted.
-    pub fn format_with_highlight_pos(&self, pos: Option<BasePos>) -> String {
+    pub fn format_with_highlighted_basepos(&self, pos: Option<BasePos>) -> String {
         let idx = pos.map(|position| position.as_0based_index());
         self.format_with_highlight_index(idx)
     }
 
-    /// Highlight a series of bases using a interval. If interval end falls outside of sequence length
-    /// it will be annotated with ]>EndPosition
-    pub fn format_with_highlight_interval(&self, interval: Option<&BaseInterval>) -> String {
-        if let Some(reg) = interval {
-            let (start, end) = reg.as_0based_indices();
-            let mut s = self.to_string();
+    /// Highlight a sequence using a classic rust ops::Range
+    /// (0-based in-element numbering, half open)
+    ///
+    /// When using rust ranges for region selection, its easies to think of them
+    /// exactly like an [`InterbaseInterval`] (0-based, inter-element numbering)
+    ///
+    /// ```text
+    ///         A C T G
+    ///        0 1 2 3 4
+    /// 0..1    -
+    /// 0..4    -------
+    /// 2..3        -
+    /// ```
+    ///
+    /// # Examples
+    ///
+    /// Square brackets will be arranged around the selected region.
+    /// If range includes region outside the sequence, it will
+    ///
+    /// ```
+    /// use seqlib::IupacDnaSeq,
+    /// let seq = IupacDnaSeq::new("ACTG").unwrap();
+    /// assert_eq!(seq.format_with_highlighted_range(&(0..1)), "[A]CTG");
+    /// assert_eq!(seq.format_with_highlighted_range(&(0..4)), "[ACTG]");
+    /// assert_eq!(seq.format_with_highlighted_range(&(2..3)), "AC[T]G");
+    ///
+    /// // When range ends outside of selected base >+Number indicates the
+    /// // number of bases implied to be in interval but not included.
+    /// assert_eq!(seq.format_with_highlighted_range(&(0..5)), "[ACTG]>+1");
+    ///
+    ///
+    /// // If both start and end of interval are outside the sequence add ...[...]
+    /// assert_eq!(seq.format_with_highlighted_range(&(5..6)), "ACTG...[...]");
+    /// ```
+    pub fn format_with_highlighted_range(&self, range: &Range<usize>) -> String {
+        let start = range.start;
+        let end = range.end; // 
 
-            if self.sequence_contains_position(*reg.start()) {
-                s.insert(start, '[');
-            }
+        let mut s = self.to_string();
 
-            if self.sequence_contains_position(*reg.end()) {
-                s.insert(end + 1, ']');
-            } else if !self.is_empty() {
-                s.push_str(&format!("{}{}", "]>", reg.end()));
-            };
-            s
+        // If we do add a starting region brace to string, we'll need to nudge end insertion point
+        let mut nudge_by: usize = 0usize;
+
+        // In a length-4 sequence we can only insert a left-bracket at
+        // interbase position 3. If start of range is larger then we'll need to add it at the end
+        if self.len() > start {
+            s.insert(start, '[');
+            nudge_by += 1;
         } else {
-            self.to_string()
+            // Since end is always >= start if start is outside sequence range, so is end
+            s.push_str("...[...]");
+            return s; // return
         }
+
+        // In a length-4 sequence the largest position we can end our range on is at
+        // interbase position 4. Any larger and we add an arrow ']>' to indicate we're selecting
+        // beyond the range
+        //
+        if self.len() >= end {
+            s.insert(end + nudge_by, ']');
+        } else if !self.is_empty() {
+            // Add an indication of the
+            s.push_str(&format!("{}{}", "]>+", end - self.len()));
+        };
+        s
+    }
+
+    /// Highlight a series of bases using a interval.
+    /// If interval end falls outside of sequence length
+    /// it will be annotated with ]>BasesNotShown
+    pub fn format_with_highlighted_base_interval(&self, interval: Option<&BaseInterval>) -> String {
+        // early return if interval is empty
+        let Some(interval) = interval else {
+            return self.to_string();
+        };
+
+        // Use our general ops::Range implementation to power the selection logic
+        self.format_with_highlighted_range(&std::ops::Range::from(interval))
+    }
+
+    /// Highlight a series of bases using a interval.
+    /// If interval end falls outside of sequence length
+    /// it will be annotated with ]>BasesNotShown
+    pub fn format_with_highlighted_interbase_interval(
+        &self,
+        interval: Option<&InterbaseInterval>,
+    ) -> String {
+        // early return if interval is empty
+        let Some(interval) = interval else {
+            return self.to_string();
+        };
+
+        // Use our general ops::Range implementation to power the selection logic
+        self.format_with_highlighted_range(&std::ops::Range::from(interval))
     }
 
     /// Format sequence as string, with ANSI color codes to get background highlights
