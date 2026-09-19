@@ -121,7 +121,7 @@ impl<B: Base> MutationWithContext<B> {
                 context: self
                     .context()
                     .seq()
-                    .format_with_highlight_interval(Some(&self.mutated_interval())),
+                    .format_with_highlighted_base_interval(Some(&self.mutated_interval())),
             });
         }
         Ok(())
@@ -307,7 +307,7 @@ impl<B: Base> MutationWithContext<B> {
         // Create formatted reference string
         let refstring = ctx
             .seq()
-            .format_with_highlight_interval(Some(&self.mutated_interval()));
+            .format_with_highlighted_base_interval(Some(&self.mutated_interval()));
 
         // Create formatted altstring
         let altstring = self.apply_mutation().to_string();
