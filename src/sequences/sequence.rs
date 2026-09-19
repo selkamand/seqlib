@@ -638,7 +638,10 @@ impl<B: Base> Seq<B> {
     /// use seqlib::{coords::{InterbasePos, InterbaseInterval}, sequences::DnaSeq};
     ///
     /// let seq = DnaSeq::new("ACGTAC").unwrap();
-    /// let interval = InterbaseInterval::new(InterbasePos::from(2usize), InterbasePos::from(4usize);
+    /// let interval = InterbaseInterval::new(
+    ///     InterbasePos::from(2usize),
+    ///     InterbasePos::from(4usize)
+    /// ).unwrap();
     ///
     /// let sub = seq.subseq_by_interbase_interval(&interval).unwrap();
     /// assert_eq!(sub.to_string(), "GT");
