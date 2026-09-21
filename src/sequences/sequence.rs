@@ -515,7 +515,7 @@ impl<B: Base> Seq<B> {
     /// let seq = DnaSeq::new("ACGTAC").unwrap();
     /// let interval = BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap(); // 2..=4
     ///
-    /// let slice = seq.subseq_slice_by_base_interval(&interval).unwrap();
+    /// let slice = seq.slice_by_base_interval(&interval).unwrap();
     /// assert_eq!(slice.to_string_upper(), "CGT");
     /// ```
     pub fn slice_by_base_interval(&self, interval: &BaseInterval) -> Result<&[B]> {
@@ -717,8 +717,8 @@ impl<B: Base> Seq<B> {
     /// Square brackets will be arranged around the selected region.
     /// If range includes region outside the sequence, it will
     ///
-    /// ```
-    /// use seqlib::IupacDnaSeq,
+    /// ```rust
+    /// use seqlib::sequences::IupacDnaSeq;
     /// let seq = IupacDnaSeq::new("ACTG").unwrap();
     /// assert_eq!(seq.format_with_highlighted_range(&(0..1)), "[A]CTG");
     /// assert_eq!(seq.format_with_highlighted_range(&(0..4)), "[ACTG]");
