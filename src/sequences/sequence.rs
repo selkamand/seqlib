@@ -805,6 +805,31 @@ impl<B: Base> Seq<B> {
         out
     }
 
+    /// Format sequence as string, with ANSI color codes to get background highlights
+    /// and interbase interval coordinates (0-start) labelled on the row underneath
+    pub fn format_with_interbase_labels(&self) -> String {
+        let mut out = String::new();
+
+        let spacestyler = SeqStyler::PLAIN;
+        let numberstyler = SeqStyler::new().bold();
+
+        let space = spacestyler.paint(" ");
+
+        for b in self.as_slice().iter() {
+            out.push_str(&space);
+            out.push_str(&b.to_colourised_string());
+        }
+        out.push_str(&space);
+        out.push('\n');
+
+        for pos in 0usize..self.len() + 1 {
+            let pos_string = pos.to_string();
+            let painted_pos = numberstyler.paint(pos_string);
+            out.push_str(&painted_pos);
+            out.push_str(&space);
+        }
+        out
+    }
     /// Format the whole sequence using a single style.
     pub fn format_with_style(&self, style: &SeqStyler) -> String {
         style.paint(self.to_string_upper())

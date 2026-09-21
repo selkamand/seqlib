@@ -43,4 +43,8 @@ fn main() {
     // Pretty print with background colours
     println!("\nColour bases using ansi:");
     println!("{}", seq.format_with_colour());
+
+    // Pretty print on two lines showing coordinate intervals
+    println!("\nColour bases and show interbase intervals:");
+    println!("{}", seq.format_with_interbase_labels());
 }
