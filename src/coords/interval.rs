@@ -25,7 +25,21 @@ pub(crate) type Result<T> = std::result::Result<T, Error>;
 /// # Examples
 /// ```
 /// use seqlib::coords::{InterbaseInterval, InterbasePos};
-/// let i = InterbaseInterval::new(InterbasePos::from(0), InterbasePos::from(3));
+/// use std::ops::Range;
+///
+/// // Create interval from two InterbasePositions
+/// let i = InterbaseInterval::new(InterbasePos::from(0), InterbasePos::from(3)).expect("valid interval");
+///
+/// // Create equivalent interval from a rust Range
+/// let i2 = InterbaseInterval::from(0..3);
+///
+/// // Note if creating from a rust Range, if Start > End the conversion automatically flips the
+/// // coords so Start <= End. However when using [`Interbase::new()`] this case would return an explicit error
+/// let i3 = InterbaseInterval::from(3..0);
+///
+/// // Ensure all InterbaseIntervals are the same
+/// assert_eq!(i, i2);
+/// assert_eq!(i, i3);
 /// ```
 #[derive(Debug, Clone, PartialEq, Eq, Copy)]
 pub struct InterbaseInterval {
