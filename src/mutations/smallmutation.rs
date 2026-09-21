@@ -228,11 +228,11 @@ impl<B: Base> SmallMutation<B> {
     /// ```rust
     /// use seqlib::mutations::DnaSmallMutation;
     /// use seqlib::sequences::DnaSeq;
-    /// use seqlib::coords::{Pos, Strand};
+    /// use seqlib::coords::{BasePos, Strand};
     ///
     /// let m = DnaSmallMutation::new(
     ///     "chr1".to_string(),
-    ///     Pos::new(123).unwrap(),
+    ///     BasePos::new(123).unwrap(),
     ///     DnaSeq::new("A").unwrap(),
     ///     DnaSeq::new("G").unwrap(),
     ///     Some(Strand::Positive),
