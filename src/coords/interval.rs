@@ -227,7 +227,7 @@ impl InterbaseInterval {
 /// ```text
 /// Seq:                    A C T
 /// InterbasePos:          0 1 2 3
-/// Rust:                   0 1 2 [3]
+/// Rust:                  0 1 2 3
 /// InterbaseInterval 1-3:    ---
 /// Rust Range 1..3:          ---
 /// ```
@@ -243,6 +243,40 @@ impl From<&InterbaseInterval> for std::ops::Range<usize> {
         val.start.get()..val.end.get()
     }
 }
+
+/// Converts a rust [`std::ops::Range`] into an equivalent [`InterbaseInterval`].
+///
+/// It convenient to think of rust ranges as interbase, 0-start inter-element coordinates equivalent
+/// to InterbaseIntervals. The key difference is that `Range` types can have start > end but
+/// InterbaseIntervals can not. To deal with this, when Range end > start we simply switch them when
+/// loading into an InterbaseInterval.
+///
+// ```text
+/// Seq:                    A C T
+/// InterbasePos:          0 1 2 3
+/// Rust:                  0 1 2 3
+/// InterbaseInterval 1-3:    ---
+/// Rust Range 1..3:          ---
+/// ```
+///
+/// ```
+/// use seqlib::coords::{InterbaseInterval, InterbasePos};
+/// use std::ops::Range;
+///
+/// let interval = InterbaseInterval::from(1..3);
+/// ```
+impl From<std::ops::Range<usize>> for InterbaseInterval {
+    fn from(val: std::ops::Range<usize>) -> Self {
+        if val.start <= val.end {
+            Self::new(InterbasePos::new(val.start), InterbasePos::new(val.end))
+                .expect("Bug in conversion: Creating an InterbaseInterval from a Range<usize> should never error. Please report this bug")
+        } else {
+            Self::new(InterbasePos::new(val.end), InterbasePos::new(val.start))
+                .expect("Bug in conversion: Creating an InterbaseInterval from a Range<usize> should never error. Please report this bug")
+        }
+    }
+}
+
 /// A genomic interval (Start & End)
 /// Both are 1-based and both-end inclusive
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
