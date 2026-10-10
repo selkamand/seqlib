@@ -836,10 +836,7 @@ impl<B: Base> Seq<B> {
     pub fn format_with_inbase_labels(&self) -> String {
         let mut out = String::new();
 
-        let spacestyler = SeqStyler::PLAIN;
         let numberstyler = SeqStyler::new().bold();
-
-        let space = spacestyler.paint(" ");
 
         for b in self.as_slice().iter() {
             // out.push_str(&space);
