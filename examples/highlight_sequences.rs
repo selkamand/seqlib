@@ -47,4 +47,8 @@ fn main() {
     // Pretty print on two lines showing coordinate intervals
     println!("\nColour bases and show interbase intervals:");
     println!("{}", seq.format_with_interbase_labels());
+
+    // Pretty print on two lines showing in-base coordinate intervals
+    println!("\nColour bases and show in-base intervals:");
+    println!("{}", seq.format_with_inbase_labels());
 }
