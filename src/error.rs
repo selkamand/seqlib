@@ -112,6 +112,15 @@ pub enum MutationError {
         start: usize,
         end: usize,
     },
+
+    #[error(
+        "Error in: {variant_id}: lenght of reference allele does not match size of mutated region {interval_length}"
+    )]
+    MutationReferenceLengthDoesNotMatchInterval {
+        interval_length: usize,
+        reference_length: usize,
+        variant_id: String,
+    },
 }
 
 // #[derive(thiserror::Error, Debug, PartialEq, Eq)]

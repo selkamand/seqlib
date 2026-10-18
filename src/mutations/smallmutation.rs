@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::{
     base::{Base, ChemClass, DnaBase, IupacDnaBase, IupacRnaBase, RnaBase},
-    coords::{BasePos, Strand},
+    coords::{BaseInterval, BasePos, InterbaseInterval, InterbasePos, Region, Strand},
     error::MutationError as Error,
     sequences::Seq,
 };
@@ -19,19 +19,19 @@ pub type RnaSmallMutation = SmallMutation<RnaBase>;
 /// - `SmallMutation<RnaBase>` is RNA
 ///
 /// ## Coordinate and allele semantics
-/// - `position` is **1-based** (VCF-style) and refers to the **start** position.
+/// - `location` in reference sequence affected by this mutation. **0-start interbase coordinates** (VRS-style).
 /// - `reference` and `alternative` are stored **as provided** by the caller.
 ///   No left/right trimming, normalization, or decomposition is performed.
 ///
 /// ## Invariants (enforced by constructor)
-/// Reference allele must have at least one base
+/// Length of reference sequence must be equal to the size of affected region according to
+/// `location`
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SmallMutation<B: Base> {
-    /// Chromosome / Contig of mutation
-    chromosome: String,
-    /// 1-based position (start)
-    position: BasePos,
-    /// Original base sequence in reference
+    /// 0-based interbase interval describing the set of bases
+    location: Region,
+
+    /// Original base sequence in reference. Length must be equal to
     reference: Seq<B>,
 
     /// Mutation of sequence
@@ -56,9 +56,10 @@ impl<B: Base> fmt::Display for SmallMutation<B> {
         // Use the write! macro to format the output.
         write!(
             f,
-            "{}:{} {}>{} (strand: {}, delta: {}; class: {})",
-            self.chromosome,
-            self.position,
+            "{}:{}-{} {}>{} (strand: {}, delta: {}; class: {})",
+            self.chromosome(),
+            self.start(),
+            self.end(),
             self.reference,
             self.alternative,
             self.strand
@@ -71,6 +72,46 @@ impl<B: Base> fmt::Display for SmallMutation<B> {
 }
 
 impl<B: Base> SmallMutation<B> {
+    /// Creates a [`SmallMutation`]
+    ///
+    /// # Errors
+    /// Returns Error::MutationReferenceLengthDoesNotMatchInterval if length of interval in location
+    /// is not equal to the size of the reference allele sequence.
+    ///
+    /// # Panics
+    /// Any panics in this function represent a bug in the codebase. Please create a new github issue.
+    ///
+    pub fn new(
+        location: Region,
+        reference: Seq<B>,
+        alternative: Seq<B>,
+        strand: Option<Strand>,
+    ) -> Result<Self> {
+        // Return Error if interval length does not match reference sequence length
+        if location.interval().len() != reference.len() {
+            return Err(Error::MutationReferenceLengthDoesNotMatchInterval {
+                interval_length: location.interval().len(),
+                reference_length: reference.len(),
+                variant_id: format!(
+                    "{}:{}-{} {}>{}",
+                    location.name(),
+                    location.interval().start(),
+                    location.interval().end(),
+                    reference,
+                    alternative
+                ),
+            });
+        }
+
+        // Otherwise create mutation object
+        Ok(Self {
+            location,
+            reference,
+            alternative,
+            strand,
+        })
+    }
+
     /// Construct a new [`SmallMutation`].
     ///
     /// This constructor does **not** attempt to validate biological correctness beyond
@@ -85,37 +126,51 @@ impl<B: Base> SmallMutation<B> {
     ///
     /// # Parameters
     /// - `chromosome`: reference sequence / contig name (e.g. `"chr1"`)
-    /// - `position`: 1-based start coordinate
-    /// - `reference`: reference allele sequence. Must have length of at least one.
+    /// - `position`: 1-based start coordinate ([`BasePos`])
+    /// - `reference`: reference allele sequence.
     /// - `alternative`: alternative allele sequence
     /// - `strand`: Strand
-    pub fn new(
+    ///
+    /// # Errors
+    /// None. Correctness is guaranteed by argument types.
+    ///
+    /// # Panics
+    /// All panics represent bugs in seqlib itself and should be reported as github issues.
+    pub fn new_from_vcflike(
         chromosome: String,
         position: BasePos,
         reference: Seq<B>,
         alternative: Seq<B>,
         strand: Option<Strand>,
-    ) -> Self {
-        Self {
-            chromosome,
-            position,
-            reference,
-            alternative,
-            strand,
-        }
+    ) -> Result<Self> {
+        let start = usize::from(position) - 1usize; // Subtraction should never fail since BasePos is a NonZeroUsize
+        let end = start + reference.len();
+
+        let interval =
+            InterbaseInterval::new(InterbasePos::new(start), InterbasePos::new(end))
+            .unwrap_or_else(|err| {
+                panic!(
+                "Unexpected seqlib failure converting a VCF-like mutation. \
+                end position <= start position - his should not be possible and represents a bug in seqlib. \n\
+                Error: {err}")
+            });
+        let region = Region::new(chromosome, interval);
+
+        Ok(
+            Self::new(region, reference, alternative, strand).unwrap_or_else(|err| {
+                panic!(
+                    "Unexpected seqlib failure converting a VCF-like mutation. \
+                     Please report this as a GitHub issue.\n\
+                     Error: {err}"
+                )
+            }),
+        )
     }
 
     // --- Accessors (read-only) ---
     /// Returns the chromosome / contig name (e.g. `"chr1"`).
     pub fn chromosome(&self) -> &str {
-        &self.chromosome
-    }
-
-    /// Returns the 1-based start position of the mutation.
-    ///
-    /// This follows VCF conventions: the coordinate refers to the first base of `reference`.
-    pub fn position(&self) -> BasePos {
-        self.position
+        &self.location.name()
     }
 
     /// Returns the reference allele sequence.
@@ -135,6 +190,19 @@ impl<B: Base> SmallMutation<B> {
         self.strand.as_ref()
     }
 
+    /// Returns the start position of the mutated interval
+    pub fn start(&self) -> &InterbasePos {
+        self.location.interval().start()
+    }
+
+    /// Returns the end position of the mutated interval
+    pub fn end(&self) -> &InterbasePos {
+        self.location.interval().end()
+    }
+
+    pub fn location(&self) -> &Region {
+        &self.location
+    }
     // --- Computed Properties (read-only) ---
     /// Return the length of the reference allele in bases.
     ///
@@ -240,11 +308,12 @@ impl<B: Base> SmallMutation<B> {
     ///
     /// assert_eq!(m.chrom_pos_ref_alt(), "chr1:123 A>G");
     /// ```
-    pub fn chrom_pos_ref_alt(&self) -> String {
+    pub fn chrom_start_end_ref_alt(&self) -> String {
         format!(
-            "{}:{} {}>{}",
+            "{}:{}-{} {}>{}",
             self.chromosome(),
-            self.position(),
+            self.start(),
+            self.end(),
             self.reference(),
             self.alternative()
         )
@@ -254,9 +323,10 @@ impl<B: Base> SmallMutation<B> {
     /// style (based on sequence)
     pub fn format_with_colour(&self) -> String {
         format!(
-            "{}:{} {}>{}",
+            "{}:{}-{} {}>{}",
             self.chromosome(),
-            self.position(),
+            self.start(),
+            self.end(),
             self.reference().format_with_colour(),
             self.alternative().format_with_colour()
         )
@@ -270,8 +340,7 @@ impl<B: Base> SmallMutation<B> {
         let newstrand = self.strand.map(|strand| strand.flip());
 
         Self {
-            chromosome: self.chromosome.clone(),
-            position: self.position,
+            location: self.location().clone(),
             reference: self.reference.reverse_complement(),
             alternative: self.alternative.reverse_complement(),
             strand: newstrand,
