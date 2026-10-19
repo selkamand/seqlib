@@ -43,4 +43,15 @@ impl Region {
     pub fn name(&self) -> &str {
         &self.name
     }
+
+    /// Does one Region encompass another
+    ///
+    /// Returns true if name of names matches and interval of self entirely contains the query interval.
+    pub fn contains(&self, query: &Region) -> bool {
+        if self.name != query.name {
+            return false;
+        }
+
+        self.interval.contains(query.interval())
+    }
 }

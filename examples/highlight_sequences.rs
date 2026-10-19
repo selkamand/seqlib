@@ -22,7 +22,7 @@ fn main() {
     );
 
     println!("\nHighlight the interval: 2nd-4th (1-based both-end inclusive) using ansi colour");
-    println!("{}", seq.format_with_coloured_interval(&interval));
+    println!("{}", seq.format_with_coloured_baseinterval(&interval));
 
     // Highlight the 5th-100th base (1-based; both-end inclusive). Since seq is shorter than range,
     // will annotate with '>'
@@ -38,7 +38,7 @@ fn main() {
     );
 
     println!("\nHighlight the 5th-100th base with ansi colours:");
-    println!("{}", seq.format_with_coloured_interval(&interval2));
+    println!("{}", seq.format_with_coloured_baseinterval(&interval2));
 
     // Pretty print with background colours
     println!("\nColour bases using ansi:");

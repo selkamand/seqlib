@@ -201,19 +201,19 @@ impl<B: ConcreteBase> SingleBaseSubstitution<B> {
 mod tests {
     use super::*;
     use crate::{
-        coords::BasePos,
+        coords::Region,
         mutations::IupacDnaSmallMutation,
         sequences::{DnaSeq, IupacDnaSeq},
     };
 
     fn iupac_dna_mut(reference: &str, alternative: &str) -> IupacDnaSmallMutation {
         IupacDnaSmallMutation::new(
-            "chr1".to_string(),
-            BasePos::new(1).unwrap(),
+            Region::new("chr1", 0..reference.len()),
             IupacDnaSeq::new(reference).unwrap(),
             IupacDnaSeq::new(alternative).unwrap(),
             None,
         )
+        .unwrap()
     }
 
     #[test]
@@ -265,12 +265,12 @@ mod tests {
     #[test]
     fn converts_concrete_dna_small_mutation() {
         let mutation = crate::mutations::DnaSmallMutation::new(
-            "chr1".to_string(),
-            BasePos::new(1).unwrap(),
+            Region::new("chr1", 0..1),
             DnaSeq::new("T").unwrap(),
             DnaSeq::new("G").unwrap(),
             None,
-        );
+        )
+        .unwrap();
 
         let sbs = DnaSingleBaseSubstitution::try_from(&mutation).unwrap();
         assert_eq!(sbs.reference(), &DnaBase::T);

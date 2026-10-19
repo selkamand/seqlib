@@ -1,6 +1,6 @@
 use crate::{
     base::Base,
-    coords::{BaseInterval, BasePos},
+    coords::{InterbaseInterval, InterbasePos},
     error::MutationError,
     mutations::SmallMutation,
     render::SeqStyler,
@@ -29,17 +29,38 @@ impl<B: Base> std::fmt::Display for MutationWithContext<B> {
 impl<B: Base> MutationWithContext<B> {
     /// Construct a new [`MutationWithContext`]
     ///
-    /// Describing a [`SmallMutation`] and its local sequence context.
-    /// Mutation must occur within the region described by context.
-    /// If strand is supplied, it must be supplied for both the mutation and the context.
+    /// Describing a [`SmallMutation`] and its local sequence context (a [`SourcedSeq`] originating
+    /// from the same reference sequence the mutation was called against).
     ///
-    /// Note if strand is supplied for both but the value itself differs, the context will be
+    /// ## Invariants
+    /// - Mutation must occur within region spanned by context.
+    /// - If strand is supplied, it must be supplied for both the mutation and the context.
+    ///
+    /// ## Auto-processing
+    /// If strand is supplied for both mutaiton and context but the value itself differs, the context will be
     /// reverse complemented so they match.
+    ///
+    /// ## Why do we need this type?
+    ///
+    /// Mutation classification and normalisation both require information about the sequence context.
+    /// By creating a type that associates a mutation with its local sequence context (sourced from
+    /// the reference sequence) we can make it much easier to classify the mutation based on its
+    /// context or its impact on the larger sequence which it occured in.
+    ///
+    ///
+    /// ```text
+    /// Reference:     A C T A T A A
+    /// Interbase:    0-1-2-3-4-5-6-7
+    /// Mutation:         |---|
+    /// 2-4:TA>G
+    /// Context:         C T A T A
+    /// Interbase:      0-1-2-3-4-5
+    /// ```
     ///
     /// ## Errors
     /// - Returns a [`MutationError::MismatchedStrandOption`] error if a strand is specified for mutation or context but not both.
     /// - Returns a [`MutationError::MismatchedChromosomeName`] if chromosome names don't match.
-    /// - Returns a [`MutationError::MutationPositionOutsideInterval`] if mutation position is outside the region described by the context.
+    /// - Returns a [`MutationError::MutationOutsideInterval`] if mutation position is outside the region described by the context.
     pub fn new(mutation: SmallMutation<B>, context: SourcedSeq<B>) -> Result<Self> {
         // Strand comparison
         let mutstrand = mutation.strand();
@@ -71,7 +92,7 @@ impl<B: Base> MutationWithContext<B> {
 
         // Enforce invariants
         mutwithcontext.check_chromosome_names_match()?;
-        mutwithcontext.check_mutation_position_within_sequence_context_interval()?;
+        mutwithcontext.check_mutated_interval_within_context()?;
         mutwithcontext.check_reference_bases_viable()?;
 
         // If all pass return context
@@ -95,19 +116,21 @@ impl<B: Base> MutationWithContext<B> {
         Ok(())
     }
 
-    /// Returns an [`MutationError::MutationPositionOutsideInterval`] if mutation position is
+    /// Returns an [`MutationError::MutationOutsideInterval`] if mutation position is
     /// outside the region described by the context
-    fn check_mutation_position_within_sequence_context_interval(&self) -> Result<()> {
-        let mutation_position = self.mutation().position();
-        let region = self.context().region();
-        let context_start = region.interval().start();
-        let context_end = region.interval().end();
+    fn check_mutated_interval_within_context(&self) -> Result<()> {
+        // Lets pull mutated interval & context interval.
+        // We don't need regions since MutationWithContext constructors assert region names match
+        let mutated_interval = self.mutation().location().interval();
+        let context_interval = self.context().region().interval();
+
         // If mutation is outside the bounds of the sequence context return an error
-        if mutation_position < *context_start || mutation_position > *context_end {
-            return Err(MutationError::MutationPositionOutsideInterval {
-                position: mutation_position.get(),
-                start: context_start.get(),
-                end: context_end.get(),
+        if !context_interval.contains(mutated_interval) {
+            return Err(MutationError::MutationOutsideInterval {
+                mutation_start: mutated_interval.start().get(),
+                mutation_end: mutated_interval.end().get(),
+                start: context_interval.start().get(),
+                end: context_interval.end().get(),
             });
         }
 
@@ -117,43 +140,43 @@ impl<B: Base> MutationWithContext<B> {
     fn check_reference_bases_viable(&self) -> Result<()> {
         if !self.reference_bases_viable() {
             return Err(MutationError::MismatchedReferenceAlleleAndContextSeq {
-                mutation: self.mutation().chrom_pos_ref_alt(),
+                mutation: self.mutation().chrom_start_end_ref_alt(),
                 context: self
                     .context()
                     .seq()
-                    .format_with_highlighted_base_interval(Some(&self.mutated_interval())),
+                    .format_with_highlighted_interbase_interval(Some(&self.mutated_interval())),
             });
         }
         Ok(())
     }
     // < Getters >
 
-    /// Get context sequence local 1-based start position of mutation.
-    ///
-    /// For example, anchor of Pos(1) means the mutation affect the first base of sequence context.
-    /// See [`MutationWithContext::mutated_interval`] to get the full interval of bases in sequence
-    /// context that are mutated.
-    ///
-    /// # Panics
-    /// Panics only if the invariants established by [`MutationWithContext::new`]
-    /// have been violated, which indicates an internal bug.
-    pub fn anchor(&self) -> BasePos {
-        let mutation_position = self.mutation().position().get();
-        let context_start = self.context().region().interval().start().get();
-
-        let local_position = mutation_position
-            .checked_sub(context_start)
-            .and_then(|offset| offset.checked_add(1))
-            .expect(
-                "MutationWithContext invariant violated: \
-             mutation position must lie within the context region",
-            );
-
-        BasePos::new(local_position).expect(
-            "MutationWithContext invariant violated: \
-         a validated local mutation position must be non-zero",
-        )
-    }
+    // /// Get context sequence local 1-based start position of mutation.
+    // ///
+    // /// For example, anchor of Pos(1) means the mutation affect the first base of sequence context.
+    // /// See [`MutationWithContext::mutated_interval`] to get the full interval of bases in sequence
+    // /// context that are mutated.
+    // ///
+    // /// # Panics
+    // /// Panics only if the invariants established by [`MutationWithContext::new`]
+    // /// have been violated, which indicates an internal bug.
+    // pub fn anchor(&self) -> BasePos {
+    //     let mutation_interval = self.mutation().location().interval();
+    //     let context_start = self.context().region().interval().start().get();
+    //
+    //     let local_position = mutation_position
+    //         .checked_sub(context_start)
+    //         .and_then(|offset| offset.checked_add(1))
+    //         .expect(
+    //             "MutationWithContext invariant violated: \
+    //          mutation position must lie within the context region",
+    //         );
+    //
+    //     BasePos::new(local_position).expect(
+    //         "MutationWithContext invariant violated: \
+    //      a validated local mutation position must be non-zero",
+    //     )
+    // }
 
     /// Get the mutation
     pub fn mutation(&self) -> &SmallMutation<B> {
@@ -165,30 +188,24 @@ impl<B: Base> MutationWithContext<B> {
         &self.context
     }
 
-    /// Get the interval of context affected by the mutation
+    /// Get the interval of context sequence affected by the mutation
     ///
-    ///
-    /// Returns the Interval representing the mutated position (with respect to the context
+    /// Returns the Interval representing the bases in context sequence that will be changed (with respect to the context
     /// sequence)
     ///
-    /// # Panics:
-    /// Panics only if the invariants established by [`MutationWithContext::new`]
-    /// have been violated or mutation position + reflength offset creates an overflow error, which indicate internal bugs.
-    pub fn mutated_interval(&self) -> BaseInterval {
-        let start = self.anchor();
+    pub fn mutated_interval(&self) -> InterbaseInterval {
+        let mutation_interval = self.mutation.location().interval();
+        let sourcedseq_interval = self.context.region().interval();
 
-        let offset = self
-            .mutation()
-            .reflen()
-            .checked_sub(1)
-            .expect("reference alleles must contain at least one base");
+        let new_start =
+            InterbasePos::new(mutation_interval.start().get() - sourcedseq_interval.start().get());
 
-        let end = start
-            .try_add(offset)
-            .expect("mutation interval position overflowed usize");
-
-        BaseInterval::new(start, end)
-            .expect("start plus a non-negative offset must form a valid interval")
+        let new_end = InterbasePos::new(new_start.get() + mutation_interval.len());
+        InterbaseInterval::new(new_start, new_end).unwrap_or_else(|err| {
+            panic!(
+                "Bug in seqlib mutated_interval function. Please report as a github issue: \n{err}"
+            )
+        })
     }
 
     /// Is the context sequence viable given the mutation reference allele and anchor position.
@@ -198,100 +215,107 @@ impl<B: Base> MutationWithContext<B> {
     fn reference_bases_viable(&self) -> bool {
         let interval = self.mutated_interval();
 
-        let Ok(mutated_bases) = self.context().seq().subseq_by_base_interval(&interval) else {
+        let Ok(mutated_bases) = self.context().seq().subseq_by_interbase_interval(&interval) else {
             return false;
         };
 
         mutated_bases == *self.mutation().reference()
     }
 
-    /// Apply a mutation to a sequence context
+    /// Apply the biological mutation to its sequence context
+    ///
+    /// Does not mutate in-place
     ///
     /// # Panics
     /// Panics only if the invariants established by [`MutationWithContext::new`] which indicates
     /// internal bugs.
     pub fn apply_mutation(&self) -> Seq<B> {
-        let mut seq = self.context().seq().clone();
+        let seq = self.context().seq().clone();
 
         let interval = self.mutated_interval();
 
-        seq.mutate(interval, self.mutation().alternative()).expect(
+        seq.mutate(&interval, self.mutation().alternative()).expect(
             "any mutation in mutation_with_context to be possible to apply to the reference seq",
         )
     }
 
     /// Apply a mutation to a sequence context and return the interval occupied by ALT bases.
     ///
-    /// The returned interval uses 1-based coordinates local to the mutated sequence.
+    /// The returned interval uses zero-based, end-exclusive coordinates local to the mutated sequence.
     /// Mutations with an empty ALT allele return `None` because no ALT bases are present in the
     /// mutated sequence.
     ///
     /// # Panics
     /// Panics only if the invariants established by [`MutationWithContext::new`] which indicates
     /// internal bugs.
-    pub fn apply_mutation_with_alt_interval(&self) -> (Seq<B>, Option<BaseInterval>) {
-        let mut seq = self.context().seq().clone();
+    pub fn apply_mutation_with_alt_interval(&self) -> (Seq<B>, Option<InterbaseInterval>) {
+        let seq = self.context().seq();
 
-        let interval = self.mutated_interval();
+        let mutated_interval = self.mutated_interval();
 
-        let mutated = seq.mutate(interval, self.mutation().alternative()).expect(
+        let mutated = seq.mutate(&mutated_interval, self.mutation().alternative()).expect(
             "any mutation in mutation_with_context to be possible to apply to the reference seq",
         );
 
-        let alt_interval = if self.mutation().altlen() == 0 {
-            None
-        } else {
-            let start = self.anchor();
-            let end = start
-                .try_add(
-                    self.mutation()
-                        .altlen()
-                        .checked_sub(1)
-                        .expect("non-empty alternative alleles must contain at least one base"),
-                )
-                .expect("mutated interval position overflowed usize");
+        // If mutation is a deletion, the interval returned should be None
+        if self.mutation.altlen() == 0 {
+            return (mutated, None);
+        }
 
-            Some(
-                BaseInterval::new(start, end)
-                    .expect("start plus a non-negative offset must form a valid interval"),
-            )
-        };
+        // The interval describing mutation with bases in alt interval involves start + altlen().
+        let start = mutated_interval.start();
 
-        (mutated, alt_interval)
+        let new_end = start
+            .try_add(self.mutation.altlen())
+            .expect("mutated interval position overflowed usize");
+        //TODO: I don't like the above expect
+        //much. Our philosophy is panics
+        // mean bugs in seqlib - and this
+        // panic is not really a bug. We
+        // should consider returning a
+        // result type here or somehow
+        // trying to guarantee it can't fail.
+
+        // We don't have to check this interval since above code guarantees end is >= start (since
+        // its literally start + a usize)
+        let alt_interval = InterbaseInterval::new_unchecked(*start, new_end);
+
+        (mutated, Some(alt_interval))
     }
 
-    /// Borrow a reference k-mer of length `k` centered on the anchor position.
-    ///
-    /// The anchor base lies exactly at the center of the returned k-mer.
-    /// `k` must be **odd and non-zero**.
-    ///
-    /// ## Returns
-    /// - `Some(&[B])` if a centered k-mer of length `k` can be represented
-    ///   by the stored context window
-    /// - `None` otherwise
-    ///
-    /// ## `None` is returned when:
-    /// - `k` is zero or even
-    /// - there is insufficient flanking sequence on either side of the anchor
-    ///
-    /// ## Notes
-    /// - No mutation-type checks are performed (e.g. SNV vs indel)
-    /// - No strand normalization or reverse-complementing is applied
-    /// - The returned slice is borrowed; no allocation or copying occurs
-    pub fn kmer_centered_on_anchor(&self, k: usize) -> Option<&[B]> {
-        if k == 0 || k.is_multiple_of(2) {
-            return None;
-        }
-        let center = self.anchor().as_0based_index();
-        let half = k / 2;
-        let start = center.checked_sub(half)?;
-        let end = center + half + 1;
-        if end > self.context().seq().len() {
-            return None;
-        }
-        // subseq_slice returns Result<&[B]>; convert to Option
-        self.context().seq().slice(start, end).ok()
-    }
+    // /// Borrow a reference k-mer of length `k` centered on the anchor position.
+    // ///
+    // /// The anchor base lies exactly at the center of the returned k-mer.
+    // /// `k` must be **odd and non-zero**.
+    // ///
+    // /// ## Returns
+    // /// - `Some(&[B])` if a centered k-mer of length `k` can be represented
+    // ///   by the stored context window
+    // /// - `None` otherwise
+    // ///
+    // /// ## `None` is returned when:
+    // /// - `k` is zero or even
+    // /// - there is insufficient flanking sequence on either side of the anchor
+    // ///
+    // /// ## Notes
+    // /// - No mutation-type checks are performed (e.g. SNV vs indel)
+    // /// - No strand normalization or reverse-complementing is applied
+    // /// - The returned slice is borrowed; no allocation or copying occurs
+    // pub fn kmer_centered_on_anchor(&self, k: usize) -> Option<&[B]> {
+    //     if k == 0 || k.is_multiple_of(2) {
+    //         return None;
+    //     }
+    //     let mutated_interval = self.mutated_interval();
+    //     let center = self.anchor().as_0based_index();
+    //     let half = k / 2;
+    //     let start = center.checked_sub(half)?;
+    //     let end = center + half + 1;
+    //     if end > self.context().seq().len() {
+    //         return None;
+    //     }
+    //     // subseq_slice returns Result<&[B]>; convert to Option
+    //     self.context().seq().slice(start, end).ok()
+    // }
 
     /// Visualise the mutation in context
     ///
@@ -307,7 +331,7 @@ impl<B: Base> MutationWithContext<B> {
         // Create formatted reference string
         let refstring = ctx
             .seq()
-            .format_with_highlighted_base_interval(Some(&self.mutated_interval()));
+            .format_with_highlighted_interbase_interval(Some(&self.mutated_interval()));
 
         // Create formatted altstring
         let altstring = self.apply_mutation().to_string();
@@ -357,19 +381,17 @@ mod tests {
         reference: &str,
         alternative: &str,
     ) -> MutationWithContext<DnaBase> {
+        let start = position - 1;
         let mutation = SmallMutation::new(
-            "chr1".to_string(),
-            BasePos::new(position).unwrap(),
+            Region::new("chr1", start..start + reference.len()),
             DnaSeq::new(reference).unwrap(),
             DnaSeq::new(alternative).unwrap(),
             Some(Strand::Positive),
-        );
+        )
+        .unwrap();
         let context = SourcedSeq::new(
             DnaSeq::new("ACGTACGT").unwrap(),
-            Region::new(
-                "chr1",
-                BaseInterval::new(BasePos::new(100).unwrap(), BasePos::new(107).unwrap()).unwrap(),
-            ),
+            Region::new("chr1", 99..107),
             Some(Strand::Positive),
         );
 
@@ -380,12 +402,11 @@ mod tests {
     fn format_mutated_sequence_highlights_snv_alt_base() {
         let mutation = dna_mutation_with_context(103, "T", "A");
         let mutated = DnaSeq::new("ACGAACGT").unwrap();
-        let interval =
-            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(4).unwrap()).unwrap();
+        let interval = InterbaseInterval::from(3..4);
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
-        assert_eq!(alt_interval, Some(interval.clone()));
+        assert_eq!(alt_interval, Some(interval));
 
         assert_eq!(
             mutation.format_mutated_sequence_and_highlight_mutated_bases(),
@@ -397,12 +418,11 @@ mod tests {
     fn format_mutated_sequence_highlights_mnv_alt_bases() {
         let mutation = dna_mutation_with_context(103, "TAC", "GCA");
         let mutated = DnaSeq::new("ACGGCAGT").unwrap();
-        let interval =
-            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(6).unwrap()).unwrap();
+        let interval = InterbaseInterval::from(3..6);
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
-        assert_eq!(alt_interval, Some(interval.clone()));
+        assert_eq!(alt_interval, Some(interval));
 
         assert_eq!(
             mutation.format_mutated_sequence_and_highlight_mutated_bases(),
@@ -414,12 +434,11 @@ mod tests {
     fn format_mutated_sequence_highlights_entire_insertion_alt_allele() {
         let mutation = dna_mutation_with_context(103, "T", "TGG");
         let mutated = DnaSeq::new("ACGTGGACGT").unwrap();
-        let interval =
-            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(6).unwrap()).unwrap();
+        let interval = InterbaseInterval::from(3..6);
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
-        assert_eq!(alt_interval, Some(interval.clone()));
+        assert_eq!(alt_interval, Some(interval));
 
         assert_eq!(
             mutation.format_mutated_sequence_and_highlight_mutated_bases(),
@@ -431,12 +450,11 @@ mod tests {
     fn format_mutated_sequence_highlights_non_empty_deletion_alt_allele() {
         let mutation = dna_mutation_with_context(103, "TAC", "T");
         let mutated = DnaSeq::new("ACGTGT").unwrap();
-        let interval =
-            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(4).unwrap()).unwrap();
+        let interval = InterbaseInterval::from(3..4);
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
-        assert_eq!(alt_interval, Some(interval.clone()));
+        assert_eq!(alt_interval, Some(interval));
 
         assert_eq!(
             mutation.format_mutated_sequence_and_highlight_mutated_bases(),
@@ -463,12 +481,11 @@ mod tests {
     fn format_mutated_sequence_highlights_shorter_replacement_alt_allele() {
         let mutation = dna_mutation_with_context(103, "TAC", "G");
         let mutated = DnaSeq::new("ACGGGT").unwrap();
-        let interval =
-            BaseInterval::new(BasePos::new(4).unwrap(), BasePos::new(4).unwrap()).unwrap();
+        let interval = InterbaseInterval::from(3..4);
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
-        assert_eq!(alt_interval, Some(interval.clone()));
+        assert_eq!(alt_interval, Some(interval));
 
         assert_eq!(
             mutation.format_mutated_sequence_and_highlight_mutated_bases(),
@@ -480,12 +497,11 @@ mod tests {
     fn format_mutated_sequence_highlights_first_base_alt_allele() {
         let mutation = dna_mutation_with_context(100, "A", "G");
         let mutated = DnaSeq::new("GCGTACGT").unwrap();
-        let interval =
-            BaseInterval::new(BasePos::new(1).unwrap(), BasePos::new(1).unwrap()).unwrap();
+        let interval = InterbaseInterval::from(0..1);
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
-        assert_eq!(alt_interval, Some(interval.clone()));
+        assert_eq!(alt_interval, Some(interval));
 
         assert_eq!(
             mutation.format_mutated_sequence_and_highlight_mutated_bases(),
@@ -497,12 +513,11 @@ mod tests {
     fn format_mutated_sequence_highlights_last_base_alt_allele() {
         let mutation = dna_mutation_with_context(107, "T", "A");
         let mutated = DnaSeq::new("ACGTACGA").unwrap();
-        let interval =
-            BaseInterval::new(BasePos::new(8).unwrap(), BasePos::new(8).unwrap()).unwrap();
+        let interval = InterbaseInterval::from(7..8);
         let (applied, alt_interval) = mutation.apply_mutation_with_alt_interval();
 
         assert_eq!(applied, mutated);
-        assert_eq!(alt_interval, Some(interval.clone()));
+        assert_eq!(alt_interval, Some(interval));
 
         assert_eq!(
             mutation.format_mutated_sequence_and_highlight_mutated_bases(),

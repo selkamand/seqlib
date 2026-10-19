@@ -2,7 +2,7 @@ use core::fmt;
 
 use crate::{
     base::{Base, ChemClass, DnaBase, IupacDnaBase, IupacRnaBase, RnaBase},
-    coords::{BaseInterval, BasePos, InterbaseInterval, InterbasePos, Region, Strand},
+    coords::{BasePos, InterbaseInterval, InterbasePos, Region, Strand},
     error::MutationError as Error,
     sequences::Seq,
 };
@@ -170,7 +170,7 @@ impl<B: Base> SmallMutation<B> {
     // --- Accessors (read-only) ---
     /// Returns the chromosome / contig name (e.g. `"chr1"`).
     pub fn chromosome(&self) -> &str {
-        &self.location.name()
+        self.location.name()
     }
 
     /// Returns the reference allele sequence.
@@ -296,17 +296,16 @@ impl<B: Base> SmallMutation<B> {
     /// ```rust
     /// use seqlib::mutations::DnaSmallMutation;
     /// use seqlib::sequences::DnaSeq;
-    /// use seqlib::coords::{BasePos, Strand};
+    /// use seqlib::coords::{Region, Strand};
     ///
     /// let m = DnaSmallMutation::new(
-    ///     "chr1".to_string(),
-    ///     BasePos::new(123).unwrap(),
+    ///     Region::new("chr1", 122..123),
     ///     DnaSeq::new("A").unwrap(),
     ///     DnaSeq::new("G").unwrap(),
     ///     Some(Strand::Positive),
-    /// );
+    /// ).unwrap();
     ///
-    /// assert_eq!(m.chrom_pos_ref_alt(), "chr1:123 A>G");
+    /// assert_eq!(m.chrom_start_end_ref_alt(), "chr1:122-123 A>G");
     /// ```
     pub fn chrom_start_end_ref_alt(&self) -> String {
         format!(
@@ -472,28 +471,26 @@ mod tests {
         Seq::<IupacRnaBase>::new(s).unwrap()
     }
 
-    fn _rna(s: &str) -> Seq<RnaBase> {
-        Seq::<RnaBase>::new(s).unwrap()
-    }
-
     fn dna_mut(ref_allele: &str, alt_allele: &str) -> IupacDnaSmallMutation {
+        let reference = dna_iupac(ref_allele);
         IupacDnaSmallMutation::new(
-            "chr1".to_string(),
-            BasePos::new(123).unwrap(),
-            dna_iupac(ref_allele),
+            Region::new("chr1", 122..122 + reference.len()),
+            reference,
             dna_iupac(alt_allele),
             Some(Strand::Positive),
         )
+        .unwrap()
     }
 
     fn rna_mut(ref_allele: &str, alt_allele: &str) -> IupacRnaSmallMutation {
+        let reference = rna_iupac(ref_allele);
         IupacRnaSmallMutation::new(
-            "tx1".to_string(),
-            BasePos::new(7).unwrap(),
-            rna_iupac(ref_allele),
+            Region::new("tx1", 0..reference.len()),
+            reference,
             rna_iupac(alt_allele),
             Some(Strand::Positive),
         )
+        .unwrap()
     }
 
     // --- Construction / context ---
@@ -506,6 +503,77 @@ mod tests {
         assert_eq!(m.delta(), 0);
         assert_eq!(m.class(), SmallMutationType::SNV);
         assert_eq!(m.titv(), Some(TiTv::Transition));
+    }
+
+    #[test]
+    fn new_preserves_region_and_interbase_accessors() {
+        let m = dna_mut("ACG", "TTA");
+        let region = Region::new("chr1", 122..125);
+
+        assert_eq!(m.location(), &region);
+        assert_eq!(m.chromosome(), "chr1");
+        assert_eq!(*m.start(), InterbasePos::new(122));
+        assert_eq!(*m.end(), InterbasePos::new(125));
+        assert_eq!(m.reference(), &dna_iupac("ACG"));
+        assert_eq!(m.alternative(), &dna_iupac("TTA"));
+        assert_eq!(m.strand(), Some(&Strand::Positive));
+    }
+
+    #[test]
+    fn new_rejects_reference_and_interval_length_mismatches() {
+        for end in [123, 125] {
+            let region = Region::new("chr1", 122..end);
+            let err = IupacDnaSmallMutation::new(region, dna_iupac("AC"), dna_iupac("GT"), None)
+                .unwrap_err();
+
+            assert_eq!(
+                err,
+                Error::MutationReferenceLengthDoesNotMatchInterval {
+                    interval_length: end - 122,
+                    reference_length: 2,
+                    variant_id: format!("chr1:122-{end} AC>GT"),
+                }
+            );
+        }
+    }
+
+    #[test]
+    fn new_accepts_empty_reference_at_interbase_boundary() {
+        let region = Region::new("chr1", 0..0);
+        let m = IupacDnaSmallMutation::new(region.clone(), dna_iupac(""), dna_iupac("A"), None)
+            .unwrap();
+
+        assert_eq!(m.location(), &region);
+        assert_eq!(m.reflen(), 0);
+        assert_eq!(m.altlen(), 1);
+        assert_eq!(m.class(), SmallMutationType::INSERTION);
+        assert_eq!(m.chrom_start_end_ref_alt(), "chr1:0-0 >A");
+    }
+
+    #[test]
+    fn new_from_vcflike_converts_start_and_reference_span() {
+        let first = IupacDnaSmallMutation::new_from_vcflike(
+            "chr1".to_string(),
+            BasePos::new(1).unwrap(),
+            dna_iupac("A"),
+            dna_iupac("G"),
+            None,
+        )
+        .unwrap();
+        assert_eq!(first.location(), &Region::new("chr1", 0..1));
+
+        let multibase = IupacDnaSmallMutation::new_from_vcflike(
+            "chr2".to_string(),
+            BasePos::new(123).unwrap(),
+            dna_iupac("ACG"),
+            dna_iupac("TTA"),
+            Some(Strand::Negative),
+        )
+        .unwrap();
+        assert_eq!(multibase.location(), &Region::new("chr2", 122..125));
+        assert_eq!(multibase.reference(), &dna_iupac("ACG"));
+        assert_eq!(multibase.alternative(), &dna_iupac("TTA"));
+        assert_eq!(multibase.strand(), Some(&Strand::Negative));
     }
 
     // --- SmallMutationType::from_lengths ---
@@ -660,9 +728,10 @@ mod tests {
         let s = m.to_string();
 
         // Keep this intentionally loose so formatting tweaks don't require rewrites.
-        assert!(s.contains("chr1:123"));
+        assert!(s.contains("chr1:122-123"));
         assert!(s.contains("A>G"));
         assert!(s.contains("delta: 0"));
+        assert_eq!(m.chrom_start_end_ref_alt(), "chr1:122-123 A>G");
     }
 
     // --- RNA smoke tests (generic over Base works) ---

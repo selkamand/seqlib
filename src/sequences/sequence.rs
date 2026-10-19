@@ -359,11 +359,27 @@ impl<B: Base> Seq<B> {
         InterbasePos::from(self.len())
     }
 
-    /// Does interval span a range that exists in this sequence. If sequence is empty no intervals are valid
-    pub fn is_interval_valid(&self, interval: &BaseInterval) -> bool {
+    /// Does interval span a range that exists in this sequence.
+    pub fn sequence_contains_base_interval(&self, interval: &BaseInterval) -> bool {
         match self.is_empty() {
             true => false,
             false => *interval.end() <= self.max_base_position(),
+        }
+    }
+
+    /// Does interval span a range that exists in this sequence.
+    pub fn sequence_contains_interbase_interval(&self, interval: &InterbaseInterval) -> bool {
+        match self.is_empty() {
+            true => false,
+            false => *interval.end() <= self.max_interbase_position(),
+        }
+    }
+
+    /// Does query interval span a range that overlaps the sequence at all
+    pub fn sequence_overlaps_interbase_interval(&self, interval: &InterbaseInterval) -> bool {
+        match self.is_empty() {
+            true => false,
+            false => *interval.start() < self.max_interbase_position(),
         }
     }
 
@@ -859,16 +875,10 @@ impl<B: Base> Seq<B> {
         style.paint(self.to_string_upper())
     }
 
-    /// Format a sequence using one style inside `interval` and another
-    /// style outside it.
-    ///
-    /// The interval uses 1-based inclusive coordinates. If the interval
-    /// extends beyond the end of the sequence, it is clamped to the
-    /// sequence length. If it starts beyond the sequence, the entire
-    /// sequence receives `outside_style`.
-    pub fn format_interval_with_styles(
+    /// Paint a zero-based, end-exclusive range, clamping it to this sequence.
+    fn format_range_with_styles(
         &self,
-        interval: &BaseInterval,
+        range: Range<usize>,
         outside_style: &SeqStyler,
         inside_style: &SeqStyler,
     ) -> String {
@@ -876,68 +886,117 @@ impl<B: Base> Seq<B> {
             return String::new();
         }
 
-        // Interval start is 1-based inclusive.
-        let start = interval.start().as_0based_index();
-
-        // There is no overlap with the sequence.
-        if start >= self.len() {
+        let start = range.start.min(self.len());
+        let end = range.end.min(self.len());
+        if start >= end {
             return outside_style.paint(self);
         }
 
-        // For a 1-based inclusive end coordinate, the numeric position is
-        // also the corresponding 0-based exclusive slice boundary.
-        //
-        // For example:
-        // interval 3..=5 -> Rust slice 2..5
-        let end_exclusive = interval.end().get().min(self.len());
-
         let (before, remaining) = self.as_slice().split_at(start);
-        let (within, after) = remaining.split_at(end_exclusive - start);
+        let (within, after) = remaining.split_at(end - start);
 
         let mut output = String::new();
-
-        // Avoid emitting empty ANSI sections.
-        if !before.is_empty() {
-            output.push_str(&outside_style.paint(before.to_string_upper()));
-        }
-
-        if !within.is_empty() {
-            output.push_str(&inside_style.paint(within.to_string_upper()));
-        }
-
-        if !after.is_empty() {
-            output.push_str(&outside_style.paint(after.to_string_upper()));
+        for (bases, style) in [
+            (before, outside_style),
+            (within, inside_style),
+            (after, outside_style),
+        ] {
+            // Painting an empty slice would still emit an ANSI prefix and reset.
+            if !bases.is_empty() {
+                output.push_str(&style.paint(bases.to_string_upper()));
+            }
         }
 
         output
     }
 
+    /// Format a sequence using one style inside `interval` and another
+    /// style outside it.
+    ///
+    /// The interbase interval uses zero-based, end-exclusive coordinates.
+    /// Empty intervals select no bases. An interval extending past the sequence
+    /// is clamped to its length. If it starts at or beyond the end, the entire
+    /// sequence receives `outside_style`.
+    pub fn format_interval_with_styles(
+        &self,
+        interval: &InterbaseInterval,
+        outside_style: &SeqStyler,
+        inside_style: &SeqStyler,
+    ) -> String {
+        self.format_range_with_styles(Range::from(interval), outside_style, inside_style)
+    }
+
     /// Highlight an interval using the standard sequence styles.
-    pub fn format_with_coloured_interval(&self, interval: &BaseInterval) -> String {
+    pub fn format_with_coloured_interval(&self, interval: &InterbaseInterval) -> String {
         self.format_interval_with_styles(interval, &SeqStyler::DIMMED, &SeqStyler::HIGHLIGHT)
     }
 
-    /// Mutate a sequence changing an interval to a new sequence
-    pub fn mutate(&mut self, interval: BaseInterval, new: &Seq<B>) -> Result<Self> {
-        let mut cloned_seq = self.clone();
-        cloned_seq.mutate_in_place(interval, new)?;
-
-        Ok(cloned_seq)
+    /// Format a sequence using one style inside `interval` and another
+    /// style outside it.
+    ///
+    /// The interval uses 1-based inclusive coordinates. If the interval
+    /// extends beyond the end of the sequence, it is clamped to the
+    /// sequence length. If it starts beyond the sequence, the entire
+    /// sequence receives `outside_style`.
+    pub fn format_baseinterval_with_styles(
+        &self,
+        interval: &BaseInterval,
+        outside_style: &SeqStyler,
+        inside_style: &SeqStyler,
+    ) -> String {
+        self.format_range_with_styles(Range::from(interval), outside_style, inside_style)
     }
 
-    pub fn mutate_in_place(&mut self, interval: BaseInterval, new: &Seq<B>) -> Result<()> {
-        if !self.is_interval_valid(&interval) {
-            return Err(SequenceError::FailedMutateInvalidInterval {
+    /// Highlight an interval using the standard sequence styles.
+    pub fn format_with_coloured_baseinterval(&self, interval: &BaseInterval) -> String {
+        self.format_baseinterval_with_styles(interval, &SeqStyler::DIMMED, &SeqStyler::HIGHLIGHT)
+    }
+
+    /// Mutate a sequence in place
+    fn mutate_in_place(&mut self, interval: &InterbaseInterval, new: &Seq<B>) -> Result<()> {
+        if !self.sequence_contains_interbase_interval(interval) {
+            return Err(SequenceError::FailedMutateInvalidInterbaseInterval {
+                interval: *interval,
+                seqlength: self.len(),
+            });
+        }
+
+        let range = std::ops::Range::from(interval);
+        // Replace range with expected values
+        self.seq.splice(range, new.as_slice().iter().cloned());
+
+        Ok(())
+    }
+
+    /// Create a mutated copy of self with interval changed to 'new'.
+    pub fn mutate(&self, interval: &InterbaseInterval, new: &Seq<B>) -> Result<Self> {
+        let mut seq_copy = self.clone();
+        seq_copy.mutate_in_place(interval, new)?;
+        Ok(seq_copy)
+    }
+
+    /// Mutate a sequence changing an interval to a new sequence
+    pub fn mutate_by_baseinterval(&self, interval: BaseInterval, new: &Seq<B>) -> Result<Self> {
+        let mut cloned_seq = self.clone();
+        cloned_seq.mutate_by_baseinterval_in_place(interval, new)?;
+        Ok(cloned_seq)
+    }
+    pub fn mutate_by_baseinterval_in_place(
+        &mut self,
+        interval: BaseInterval,
+        new: &Seq<B>,
+    ) -> Result<()> {
+        if !self.sequence_contains_base_interval(&interval) {
+            return Err(SequenceError::FailedMutateInvalidBaseInterval {
                 interval,
                 seqlength: self.len(),
             });
         }
 
-        let start = interval.start().as_0based_index();
-        let end = interval.end().get();
+        let range = std::ops::Range::from(interval);
 
         // Replace range with expected values
-        self.seq.splice(start..end, new.as_slice().iter().cloned());
+        self.seq.splice(range, new.as_slice().iter().cloned());
 
         Ok(())
     }
@@ -1213,6 +1272,81 @@ mod tests {
 
     fn rna(s: &str) -> IupacRnaSeq {
         IupacRnaSeq::new(s).unwrap()
+    }
+
+    #[test]
+    fn format_interval_with_styles_uses_half_open_interbase_coordinates() {
+        let seq = dna("acgt");
+        let outside = SeqStyler::new().bold().disable_fixed_width();
+        let inside = SeqStyler::new().underline().disable_fixed_width();
+
+        assert_eq!(
+            seq.format_interval_with_styles(&InterbaseInterval::from(1..3), &outside, &inside),
+            "\x1b[0;1mA\x1b[0m\x1b[0;4mCG\x1b[0m\x1b[0;1mT\x1b[0m"
+        );
+        assert_eq!(
+            seq.format_interval_with_styles(&InterbaseInterval::from(0..4), &outside, &inside),
+            inside.paint("ACGT")
+        );
+        assert_eq!(
+            seq.format_interval_with_styles(&InterbaseInterval::from(0..2), &outside, &inside),
+            format!("{}{}", inside.paint("AC"), outside.paint("GT"))
+        );
+        assert_eq!(
+            seq.format_interval_with_styles(&InterbaseInterval::from(2..4), &outside, &inside),
+            format!("{}{}", outside.paint("AC"), inside.paint("GT"))
+        );
+    }
+
+    #[test]
+    fn format_interval_with_styles_clamps_and_skips_empty_sections() {
+        let seq = dna("ACGT");
+        let outside = SeqStyler::new().bold().disable_fixed_width();
+        let inside = SeqStyler::new().underline().disable_fixed_width();
+
+        assert_eq!(
+            seq.format_interval_with_styles(&InterbaseInterval::from(2..9), &outside, &inside),
+            format!("{}{}", outside.paint("AC"), inside.paint("GT"))
+        );
+        assert_eq!(
+            seq.format_interval_with_styles(&InterbaseInterval::from(0..9), &outside, &inside),
+            inside.paint("ACGT")
+        );
+
+        for interval in [4..6, 5..7, 0..0, 2..2, 4..4] {
+            assert_eq!(
+                seq.format_interval_with_styles(
+                    &InterbaseInterval::from(interval),
+                    &outside,
+                    &inside
+                ),
+                outside.paint("ACGT")
+            );
+        }
+
+        assert_eq!(
+            dna("").format_interval_with_styles(&InterbaseInterval::from(0..9), &outside, &inside),
+            ""
+        );
+    }
+
+    #[test]
+    fn format_baseinterval_with_styles_keeps_inclusive_coordinates() {
+        let seq = dna("ACGT");
+        let interval =
+            BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(3).unwrap()).unwrap();
+        let outside = SeqStyler::new().bold().disable_fixed_width();
+        let inside = SeqStyler::new().underline().disable_fixed_width();
+
+        assert_eq!(
+            seq.format_baseinterval_with_styles(&interval, &outside, &inside),
+            format!(
+                "{}{}{}",
+                outside.paint("A"),
+                inside.paint("CG"),
+                outside.paint("T")
+            )
+        );
     }
 
     // --- Construction / strict alphabets ---

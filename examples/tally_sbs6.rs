@@ -1,6 +1,8 @@
 use seqlib::{
-    base::DnaBase, basepos, coords::BasePos, dna, mutations::DnaSingleBaseSubstitution,
-    mutations::DnaSmallMutation,
+    base::DnaBase,
+    coords::{InterbaseInterval, Region},
+    dna,
+    mutations::{DnaSingleBaseSubstitution, DnaSmallMutation},
 };
 
 #[derive(Debug, Default)]
@@ -15,20 +17,54 @@ struct Sbs6Tally {
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let mutations = [
-        DnaSmallMutation::new("Chr1".to_owned(), basepos!(101), dna!("C"), dna!("A"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), basepos!(103), dna!("C"), dna!("T"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), basepos!(104), dna!("T"), dna!("A"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), basepos!(105), dna!("T"), dna!("C"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), basepos!(106), dna!("T"), dna!("G"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), basepos!(107), dna!("G"), dna!("A"), None),
-        DnaSmallMutation::new("Chr1".to_owned(), basepos!(108), dna!("C"), dna!("C"), None),
         DnaSmallMutation::new(
-            "Chr1".to_owned(),
-            basepos!(109),
+            Region::new("Chr1", InterbaseInterval::from(100..101)),
+            dna!("C"),
+            dna!("A"),
+            None,
+        )?,
+        DnaSmallMutation::new(
+            Region::new("Chr1", InterbaseInterval::from(102..103)),
+            dna!("C"),
+            dna!("T"),
+            None,
+        )?,
+        DnaSmallMutation::new(
+            Region::new("Chr1", InterbaseInterval::from(103..104)),
+            dna!("T"),
+            dna!("A"),
+            None,
+        )?,
+        DnaSmallMutation::new(
+            Region::new("Chr1", InterbaseInterval::from(104..105)),
+            dna!("T"),
+            dna!("C"),
+            None,
+        )?,
+        DnaSmallMutation::new(
+            Region::new("Chr1", InterbaseInterval::from(105..106)),
+            dna!("T"),
+            dna!("G"),
+            None,
+        )?,
+        DnaSmallMutation::new(
+            Region::new("Chr1", InterbaseInterval::from(106..107)),
+            dna!("G"),
+            dna!("A"),
+            None,
+        )?,
+        DnaSmallMutation::new(
+            Region::new("Chr1", InterbaseInterval::from(107..108)),
+            dna!("C"),
+            dna!("C"),
+            None,
+        )?,
+        DnaSmallMutation::new(
+            Region::new("Chr1", InterbaseInterval::from(108..109)),
             dna!("C"),
             dna!("CA"),
             None,
-        ),
+        )?,
     ];
 
     let mut tally = Sbs6Tally::default();
@@ -40,7 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Err(err) => {
                 eprintln!(
                     "Skipping mutation: {} as it was not a valid single base substition: {err}",
-                    mutation.chrom_pos_ref_alt(),
+                    mutation.chrom_start_end_ref_alt(),
                 );
                 continue;
             }

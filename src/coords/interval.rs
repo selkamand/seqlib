@@ -178,6 +178,24 @@ impl InterbaseInterval {
         self.end().get() - self.start().get()
     }
 
+    /// Returns whether `query` lies entirely within this interval.
+    ///
+    /// An empty interval at either boundary is contained.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use seqlib::coords::InterbaseInterval;
+    ///
+    /// let interval = InterbaseInterval::from(2..5);
+    /// assert!(interval.contains(&InterbaseInterval::from(3..4)));
+    /// assert!(interval.contains(&InterbaseInterval::from(5..5)));
+    /// assert!(!interval.contains(&InterbaseInterval::from(4..6)));
+    /// ```
+    pub fn contains(&self, query: &InterbaseInterval) -> bool {
+        self.start <= query.start && self.end >= query.end
+    }
+
     /// Converts a feature interval (`original`) to offsets within the region `self`.
     ///
     /// Use this to locate a variant or annotation in a sequence extracted from `self`.

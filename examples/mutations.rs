@@ -1,6 +1,6 @@
 use seqlib::{
     basepos,
-    coords::{BaseInterval, BasePos, Region, Strand},
+    coords::{BaseInterval, BasePos, InterbaseInterval, Region, Strand},
     dna,
     mutations::{DnaSmallMutation, MutationWithContext},
     sequences::SourcedSeq,
@@ -9,12 +9,12 @@ use seqlib::{
 fn main() {
     // Define a small dna mutation (e.g. a snv / insertion / deletion / etc)
     let mutation = DnaSmallMutation::new(
-        "chr1".to_owned(),
-        basepos!(2004),
+        Region::new("chr1", InterbaseInterval::from(2004..2005)),
         dna!("A"),
         dna!("G"),
         Some(Strand::Positive),
-    );
+    )
+    .expect("Valid mutation definition");
 
     // Print the DNA mutation
     println!("-------------------------");
@@ -25,11 +25,7 @@ fn main() {
     // Define a sequence from a reference genome which contains the mutated site
     let context = SourcedSeq::new(
         dna!("ACGTACGTGCA"),
-        Region::new(
-            "chr1",
-            BaseInterval::new(basepos!(2000), basepos!(2010))
-                .expect("example context coordinates are valid"),
-        ),
+        Region::new("chr1", InterbaseInterval::from(2000..2010)),
         Some(Strand::Positive),
     );
 
@@ -48,15 +44,16 @@ fn main() {
 
     // Representing Indels
     let indel = DnaSmallMutation::new(
-        "chr1".to_owned(),
-        basepos!(2004),
-        dna!("A"),
+        Region::new("chr1", InterbaseInterval::from(2004..2006)),
+        dna!("AC"),
         dna!(""),
         Some(Strand::Positive),
-    );
+    )
+    .expect("Valid mutation definition");
 
     let indelcontext = context.clone();
     let indel_with_context = MutationWithContext::new(indel, indelcontext).unwrap();
+
     println!("\n-------------------------");
     println!("Indel with Context");
     println!("-------------------------");

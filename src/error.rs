@@ -1,6 +1,6 @@
 use crate::{
     base::Alphabet,
-    coords::{BaseInterval, BasePos},
+    coords::{BaseInterval, BasePos, InterbaseInterval},
 };
 
 #[derive(thiserror::Error, Debug, PartialEq, Eq)]
@@ -53,9 +53,17 @@ pub enum SequenceError {
         len: usize,
     },
 
-    #[error("cannot mutate interval: {interval}; it spans beyond sequence length {seqlength}")]
-    FailedMutateInvalidInterval {
+    #[error("cannot mutate BaseInterval: {interval}; it spans beyond sequence length {seqlength}")]
+    FailedMutateInvalidBaseInterval {
         interval: BaseInterval,
+        seqlength: usize,
+    },
+
+    #[error(
+        "cannot mutate InterbaseInterval: {interval}; it spans beyond sequence length {seqlength}"
+    )]
+    FailedMutateInvalidInterbaseInterval {
+        interval: InterbaseInterval,
         seqlength: usize,
     },
 
@@ -105,10 +113,11 @@ pub enum MutationError {
         context_chromosome: String,
     },
     #[error(
-        "mutation position ({position}) is outside the interval {start}-{end} (1-based inclusive)"
+        "mutation ({mutation_start}-{mutation_end}) is outside the interval {start}-{end} (1-based inclusive)"
     )]
-    MutationPositionOutsideInterval {
-        position: usize,
+    MutationOutsideInterval {
+        mutation_start: usize,
+        mutation_end: usize,
         start: usize,
         end: usize,
     },
