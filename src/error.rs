@@ -44,6 +44,9 @@ pub enum SequenceError {
     #[error(transparent)]
     InvalidBase(#[from] BaseError),
 
+    #[error("cannot reverse-complement a sourced sequence from an unstranded molecule")]
+    CannotReverseComplementUnstrandedSourcedSeq,
+
     #[error(
         "invalid subsequence coordinates: requested range [{start}, {end}) on a sequence of length {len}"
     )]
@@ -80,6 +83,20 @@ pub enum SequenceError {
 pub enum MutationError {
     #[error(transparent)]
     Coord(#[from] CoordError),
+
+    #[error(transparent)]
+    Sequence(#[from] SequenceError),
+
+    #[error("cannot reverse-complement a mutation from an unstranded molecule")]
+    CannotReverseComplementUnstrandedMutation,
+
+    #[error(
+        "context sequence length {sequence_length} does not match its reference region length {region_length}"
+    )]
+    ContextSequenceLengthDoesNotMatchRegion {
+        sequence_length: usize,
+        region_length: usize,
+    },
 
     #[error("cannot pyrimidine-center mutation because the reference sequence has no middle base")]
     MissingMiddleBase,
