@@ -145,7 +145,26 @@ seqlib does NOT treat these coord systems interchangeably nor offers generic pos
 Every function MUST specifically decide which position or interval type it expects and returns. 
 This is an intentional design decision.
 
+### Mutations
+
+Small mutations (SNVs, INDELs, Doublets, etc) will usually be represented using the `SmallMutation` type. It supports the fields:
+
+- **location** -> reference-forward description of the sequence name and interbase-interval that is affected by the mutation (`Region`)
+- **reference** -> reference allele (strand-aware)
+- **alternative** -> alternative allele (strand-aware, no multi-allelics supported)
+- **\[strand\]** -> optionally indicate which strand of the reference the mutation reference and alternative alleles are described relative to.
+
+Most mutation classification schemes also require information about the sequence context around the mutation. 
+Often a user of seqlib might query a reference genome around that mutation. This can be stored as a `SourcedSeq` which has three fields:
+
+- *seq* -> the literal sequence source from some larger sequence/reference genome
+- *region* -> reference-forward description of what part of the larger sequence this chunk arose from.
+- *strand* -> strand of the original sequence which contained `seq`.
+
+You can then associate a sourced sequence with a mutation using `MutationWithContext`
+
 ---
+
 
 ## Ambiguity handling
 
