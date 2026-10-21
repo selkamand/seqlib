@@ -3,22 +3,25 @@
 
 use crate::base::Base;
 use crate::coords::{Region, Strand};
+use crate::error::SequenceError;
 use crate::sequences::Seq;
 
 /// A sequence that originates from some other source like a reference genome / transcriptome or
 /// another sequence.
 ///
-/// Describes the sequence itself ([`Seq`]), and the [`Region`] and [`Strand`] of the original sequence which contained the sequence.
+/// The region uses reference-forward coordinates. The bases are written 5′→3′
+/// in the orientation indicated by `strand`; `None` means an unstranded molecule.
 ///
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourcedSeq<B: Base> {
     /// The sequence sourced from some other source
     seq: Seq<B>,
 
-    /// Region of the original sequence that contained `seq`
+    /// Region of the original sequence that contained `seq`.
+    /// Always reference-forward irrespective of strand.
     region: Region,
 
-    /// Strand of the original sequence which contained `seq`
+    /// Orientation of the stored bases, or `None` for an unstranded molecule.
     strand: Option<Strand>,
 }
 
@@ -60,16 +63,15 @@ impl<B: Base> SourcedSeq<B> {
         &self.seq
     }
 
-    /// Returns the source [`Region`] this sequence came from.
-    /// Always given in the forward orientation, so to actually get the [`seq()`] from
-    /// the original sequence, check [`strand()`] to figure out whether the original sequence was
-    /// reverse complemented
+    /// Returns the source [`Region`] in reference-forward coordinates.
+    /// For a negative strand sequence, its stored bases run in the opposite
+    /// direction from the coordinates in this region.
     pub fn region(&self) -> &Region {
         &self.region
     }
 
-    /// Returns the [`Strand`] this sequence originated from if sequence originates from a double stranded
-    /// molecule.
+    /// Returns the orientation of the stored bases on a double-stranded molecule.
+    /// Returns `None` for an unstranded molecule.
     pub fn strand(&self) -> Option<&Strand> {
         self.strand.as_ref()
     }
@@ -77,27 +79,39 @@ impl<B: Base> SourcedSeq<B> {
     /// Return a new SourcedSeq representing the reverse complement.
     ///
     /// Reverse complements the [`SourcedSeq::seq()`] and flips the strand.
-    /// [`SourcedSeq::region()`] is intentionally left unchanged.
-    pub fn reverse_complement(&self) -> Self {
-        Self {
+    /// [`SourcedSeq::region()`] is intentionally left unchanged since its always reference-forward.
+    ///
+    /// Returns an error for an unstranded source, which has no opposite strand
+    /// to describe with the same reference coordinates.
+    pub fn reverse_complement(&self) -> Result<Self, SequenceError> {
+        let strand = self
+            .strand
+            .ok_or(SequenceError::CannotReverseComplementUnstrandedSourcedSeq)?;
+
+        Ok(Self {
             seq: self.seq().reverse_complement(),
             region: self.region().to_owned(),
-            strand: self.strand().map(|s| s.flip()),
-        }
+            strand: Some(strand.flip()),
+        })
     }
 
     /// Reverse Complements the SourcedSeq in place
     ///
     /// Reverse complements the [`SourcedSeq::seq()`] and flips the strand.
-    /// [`SourcedSeq::region()`] is intentionally left unchanged.
-    pub fn reverse_complement_in_place(&mut self) {
+    /// [`SourcedSeq::region()`] is intentionally left unchanged. Returns an error
+    /// without changing `self` when the source is unstranded.
+    pub fn reverse_complement_in_place(&mut self) -> Result<(), SequenceError> {
+        let strand = self
+            .strand
+            .ok_or(SequenceError::CannotReverseComplementUnstrandedSourcedSeq)?;
+
         // Reverse complement in place
         self.seq.reverse_complement_in_place();
 
         // Flip strand
-        if let Some(unwrapped_strand) = self.strand {
-            self.strand = Some(unwrapped_strand.flip())
-        };
+        self.strand = Some(strand.flip());
+
+        Ok(())
     }
 
     /// Format the sourced sequence with ansi colouring of the sequence

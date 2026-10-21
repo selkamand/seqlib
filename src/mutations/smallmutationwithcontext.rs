@@ -1,6 +1,6 @@
 use crate::{
     base::Base,
-    coords::{InterbaseInterval, InterbasePos},
+    coords::{InterbaseInterval, InterbasePos, Strand},
     error::MutationError,
     mutations::SmallMutation,
     render::SeqStyler,
@@ -9,7 +9,10 @@ use crate::{
 
 pub(crate) type Result<T> = std::result::Result<T, MutationError>;
 
-/// A small mutation annotated with the reference sequence from which it was created
+/// A small mutation and its local reference sequence in the same orientation.
+///
+/// The mutation location and context region always use reference-forward coordinates.
+/// Their strand describes the orientation of the stored allele and context bases.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct MutationWithContext<B: Base> {
     mutation: SmallMutation<B>,
@@ -34,18 +37,20 @@ impl<B: Base> MutationWithContext<B> {
     ///
     /// ## Invariants
     /// - Mutation must occur within region spanned by context.
-    /// - If strand is supplied, it must be supplied for both the mutation and the context.
+    /// - Context sequence length must equal the length of its reference region.
+    /// - Both strands must be specified, or both must be `None` for an unstranded molecule.
     ///
     /// ## Auto-processing
-    /// If strand is supplied for both mutaiton and context but the value itself differs, the context will be
-    /// reverse complemented so they match.
+    /// If the mutation and context have opposite strands, the context is reverse
+    /// complemented so its stored bases match the orientation of the alleles.
+    /// The reference coordinates of both objects remain unchanged.
     ///
     /// ## Why do we need this type?
     ///
     /// Mutation classification and normalisation both require information about the sequence context.
     /// By creating a type that associates a mutation with its local sequence context (sourced from
     /// the reference sequence) we can make it much easier to classify the mutation based on its
-    /// context or its impact on the larger sequence which it occured in.
+    /// context or its impact on the larger sequence in which it occurred.
     ///
     ///
     /// ```text
@@ -61,7 +66,17 @@ impl<B: Base> MutationWithContext<B> {
     /// - Returns a [`MutationError::MismatchedStrandOption`] error if a strand is specified for mutation or context but not both.
     /// - Returns a [`MutationError::MismatchedChromosomeName`] if chromosome names don't match.
     /// - Returns a [`MutationError::MutationOutsideInterval`] if mutation position is outside the region described by the context.
+    /// - Returns a [`MutationError::ContextSequenceLengthDoesNotMatchRegion`] if the context sequence and region have different lengths.
     pub fn new(mutation: SmallMutation<B>, context: SourcedSeq<B>) -> Result<Self> {
+        let sequence_length = context.seq().len();
+        let region_length = context.region().interval().len();
+        if sequence_length != region_length {
+            return Err(MutationError::ContextSequenceLengthDoesNotMatchRegion {
+                sequence_length,
+                region_length,
+            });
+        }
+
         // Strand comparison
         let mutstrand = mutation.strand();
         let contextstrand = context.strand();
@@ -80,7 +95,7 @@ impl<B: Base> MutationWithContext<B> {
             // Reverse complement context to ensure strand of context and mutation always match
             (Some(strand1), Some(strand2)) => match strand1 == strand2 {
                 true => context,
-                false => context.reverse_complement(),
+                false => context.reverse_complement()?,
             },
         };
 
@@ -190,17 +205,32 @@ impl<B: Base> MutationWithContext<B> {
 
     /// Get the interval of context sequence affected by the mutation
     ///
-    /// Returns the Interval representing the bases in context sequence that will be changed (with respect to the context
-    /// sequence)
+    /// Returns the zero-based, half-open interval in the stored context sequence.
+    /// Reference coordinates stay fixed across strands, but local sequence indexes run
+    /// in the opposite direction on the negative strand.
+    ///
+    /// For context region `[s, e)` and mutation location `[a, b)`, this is
+    /// `[a - s, b - s)` on the positive strand or an unstranded molecule, and
+    /// `[e - b, e - a)` on the negative strand.
     ///
     pub fn mutated_interval(&self) -> InterbaseInterval {
         let mutation_interval = self.mutation.location().interval();
-        let sourcedseq_interval = self.context.region().interval();
+        let context_interval = self.context.region().interval();
 
-        let new_start =
-            InterbasePos::new(mutation_interval.start().get() - sourcedseq_interval.start().get());
+        let (local_start, local_end) = if self.context.strand() == Some(&Strand::Negative) {
+            (
+                context_interval.end().get() - mutation_interval.end().get(),
+                context_interval.end().get() - mutation_interval.start().get(),
+            )
+        } else {
+            (
+                mutation_interval.start().get() - context_interval.start().get(),
+                mutation_interval.end().get() - context_interval.start().get(),
+            )
+        };
 
-        let new_end = InterbasePos::new(new_start.get() + mutation_interval.len());
+        let new_start = InterbasePos::new(local_start);
+        let new_end = InterbasePos::new(local_end);
         InterbaseInterval::new(new_start, new_end).unwrap_or_else(|err| {
             panic!(
                 "Bug in seqlib mutated_interval function. Please report as a github issue: \n{err}"
@@ -369,6 +399,8 @@ impl<B: Base> MutationWithContext<B> {
 
 #[cfg(test)]
 mod tests {
+    use std::ops::Range;
+
     use super::*;
     use crate::{
         base::DnaBase,
@@ -396,6 +428,143 @@ mod tests {
         );
 
         MutationWithContext::new(mutation, context).unwrap()
+    }
+
+    fn dna_pair(
+        sequence: &str,
+        context_region: Range<usize>,
+        mutation_region: Range<usize>,
+        reference: &str,
+        alternative: &str,
+        strand: Option<Strand>,
+    ) -> (SmallMutation<DnaBase>, SourcedSeq<DnaBase>) {
+        let mutation = SmallMutation::new(
+            Region::new("chr1", mutation_region),
+            DnaSeq::new(reference).unwrap(),
+            DnaSeq::new(alternative).unwrap(),
+            strand,
+        )
+        .unwrap();
+        let context = SourcedSeq::new(
+            DnaSeq::new(sequence).unwrap(),
+            Region::new("chr1", context_region),
+            strand,
+        );
+        (mutation, context)
+    }
+
+    #[test]
+    fn reverse_complemented_snv_edits_the_mirrored_base() {
+        let (mutation, context) = dna_pair("AAAA", 0..4, 0..1, "A", "G", Some(Strand::Positive));
+        let positive = MutationWithContext::new(mutation.clone(), context.clone()).unwrap();
+        let negative = MutationWithContext::new(
+            mutation.reverse_complement().unwrap(),
+            context.reverse_complement().unwrap(),
+        )
+        .unwrap();
+
+        assert_eq!(negative.mutation().location(), mutation.location());
+        assert_eq!(negative.context().region(), context.region());
+        assert_eq!(negative.mutated_interval(), InterbaseInterval::from(3..4));
+        assert_eq!(negative.apply_mutation(), DnaSeq::new("TTTC").unwrap());
+        assert_eq!(
+            negative.apply_mutation(),
+            positive.apply_mutation().reverse_complement()
+        );
+    }
+
+    #[test]
+    fn reverse_complemented_snv_with_distinct_flanks_is_accepted() {
+        let (mutation, context) = dna_pair("ACGAAA", 0..6, 1..2, "C", "T", Some(Strand::Positive));
+        let negative_mutation = mutation.reverse_complement().unwrap();
+
+        // Supplying a positive context for a negative mutation also exercises
+        // constructor normalization of the context strand.
+        let negative = MutationWithContext::new(negative_mutation, context).unwrap();
+        assert_eq!(negative.context().seq(), &DnaSeq::new("TTTCGT").unwrap());
+        assert_eq!(negative.mutated_interval(), InterbaseInterval::from(4..5));
+        assert_eq!(negative.apply_mutation(), DnaSeq::new("TTTCAT").unwrap());
+    }
+
+    #[test]
+    fn reverse_complemented_mnv_and_indels_keep_the_same_reference_interval() {
+        for (
+            mutation_region,
+            reference,
+            alternative,
+            expected_local,
+            expected_sequence,
+            expected_alt_interval,
+        ) in [
+            (100..102, "AC", "GG", 2..4, "TCCC", Some(2..4)),
+            (100..102, "AC", "", 2..4, "TC", None),
+            (100..100, "", "TT", 4..4, "TCGTAA", Some(4..6)),
+            (104..104, "", "TT", 0..0, "AATCGT", Some(0..2)),
+        ] {
+            let (mutation, context) = dna_pair(
+                "ACGA",
+                100..104,
+                mutation_region,
+                reference,
+                alternative,
+                Some(Strand::Positive),
+            );
+            let positive = MutationWithContext::new(mutation.clone(), context.clone()).unwrap();
+            let negative = MutationWithContext::new(
+                mutation.reverse_complement().unwrap(),
+                context.reverse_complement().unwrap(),
+            )
+            .unwrap();
+
+            assert_eq!(
+                negative.mutation().location(),
+                positive.mutation().location()
+            );
+            assert_eq!(negative.context().region(), positive.context().region());
+            assert_eq!(
+                negative.mutated_interval(),
+                InterbaseInterval::from(expected_local)
+            );
+            assert_eq!(
+                negative.apply_mutation(),
+                positive.apply_mutation().reverse_complement()
+            );
+            let (mutated, alt_interval) = negative.apply_mutation_with_alt_interval();
+            assert_eq!(mutated, DnaSeq::new(expected_sequence).unwrap());
+            assert_eq!(
+                alt_interval,
+                expected_alt_interval.map(InterbaseInterval::from)
+            );
+        }
+    }
+
+    #[test]
+    fn unstranded_context_uses_reference_order() {
+        let (mutation, context) = dna_pair("ACGA", 100..104, 100..102, "AC", "GG", None);
+        let paired = MutationWithContext::new(mutation, context).unwrap();
+
+        assert_eq!(paired.mutated_interval(), InterbaseInterval::from(0..2));
+        assert_eq!(paired.apply_mutation(), DnaSeq::new("GGGA").unwrap());
+    }
+
+    #[test]
+    fn context_sequence_length_must_match_region_length() {
+        let (mutation, context) = dna_pair(
+            "ACGAA",
+            100..104,
+            100..101,
+            "A",
+            "T",
+            Some(Strand::Positive),
+        );
+
+        assert_eq!(
+            MutationWithContext::new(mutation, context).unwrap_err(),
+            MutationError::ContextSequenceLengthDoesNotMatchRegion {
+                sequence_length: 5,
+                region_length: 4,
+            }
+        );
     }
 
     #[test]

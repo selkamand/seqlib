@@ -20,8 +20,21 @@ pub type RnaSmallMutation = SmallMutation<RnaBase>;
 ///
 /// ## Coordinate and allele semantics
 /// - `location` in reference sequence affected by this mutation. **0-start interbase coordinates** (VRS-style).
+///   `location` should always be in reference-forward orientation regardless of `strand`.
 /// - `reference` and `alternative` are stored **as provided** by the caller.
 ///   No left/right trimming, normalization, or decomposition is performed.
+/// - `strand` describes the 5′→3′ orientation of `reference` and `alternative`, not
+///   which strand the mutation arose on. It does not affect `location`.
+///   `None` means the source molecule is unstranded.
+///
+/// ```text
+/// Reference-forward interval: [0,5); mutation interval: [1,3)
+/// + sequence (5'->3'): A C T A A; local mutation interval: [1,3)
+/// - sequence (5'->3'): T T A G T; local mutation interval: [2,4)
+///
+/// chr1:1-3 CT>C (+) <- Original
+/// chr1:1-3 AG>G (-) <- Equivalent on other strand
+/// ```
 ///
 /// ## Invariants (enforced by constructor)
 /// Length of reference sequence must be equal to the size of affected region according to
@@ -31,16 +44,14 @@ pub struct SmallMutation<B: Base> {
     /// 0-based interbase interval describing the set of bases
     location: Region,
 
-    /// Original base sequence in reference. Length must be equal to
+    /// Original base sequence in reference. Length must be equal to interval described by location.
     reference: Seq<B>,
 
     /// Mutation of sequence
     alternative: Seq<B>,
 
-    /// If mutation was on a double stranded molecule like DNA
-    /// then field indicates the strand of the reference genome the reference allele was on.
-    /// If mutation comes from an unstranded molecule (single stranded DNA / RNA)
-    /// or strand is not known can be set to None.
+    /// Orientation in which the reference and alternative alleles are written.
+    /// `None` means the source molecule is unstranded (for example, RNA)
     strand: Option<Strand>,
 }
 
@@ -183,9 +194,7 @@ impl<B: Base> SmallMutation<B> {
         &self.alternative
     }
 
-    /// Returns the strand of the source molecule that contains
-    /// the reference allele of this mutation (or None if from  
-    /// a single stranded molecule like RNA
+    /// Returns the orientation of the allele strings (`None` for an unstranded molecule).
     pub fn strand(&self) -> Option<&Strand> {
         self.strand.as_ref()
     }
@@ -331,19 +340,20 @@ impl<B: Base> SmallMutation<B> {
         )
     }
 
-    /// Reverse complement mutation
-    /// Reverse complements reference and alternative sequence and flips strand
-    /// field if present.
-    pub fn reverse_complement(&self) -> Self {
-        // Flip Strand
-        let newstrand = self.strand.map(|strand| strand.flip());
+    /// Reverse complement a stranded mutation, leaving its reference-forward
+    /// location unchanged. An unstranded mutation has no opposite strand at
+    /// the same reference coordinates and returns an error.
+    pub fn reverse_complement(&self) -> Result<Self> {
+        let strand = self
+            .strand
+            .ok_or(Error::CannotReverseComplementUnstrandedMutation)?;
 
-        Self {
+        Ok(Self {
             location: self.location().clone(),
             reference: self.reference.reverse_complement(),
             alternative: self.alternative.reverse_complement(),
-            strand: newstrand,
-        }
+            strand: Some(strand.flip()),
+        })
     }
 
     /// Ensure middle base of reference sequence is a pyrimidine
@@ -369,7 +379,7 @@ impl<B: Base> SmallMutation<B> {
 
         // Flip Chemclass
         match middle_chemclass {
-            ChemClass::Purine => Ok(self.reverse_complement()),
+            ChemClass::Purine => self.reverse_complement(),
             ChemClass::Pyrimidine => Ok(self.clone()),
         }
     }
@@ -574,6 +584,26 @@ mod tests {
         assert_eq!(multibase.reference(), &dna_iupac("ACG"));
         assert_eq!(multibase.alternative(), &dna_iupac("TTA"));
         assert_eq!(multibase.strand(), Some(&Strand::Negative));
+    }
+
+    #[test]
+    fn reverse_complement_rejects_unstranded_mutation() {
+        let mutation = IupacDnaSmallMutation::new(
+            Region::new("ssDNA", 0..1),
+            dna_iupac("A"),
+            dna_iupac("G"),
+            None,
+        )
+        .unwrap();
+
+        assert_eq!(
+            mutation.reverse_complement(),
+            Err(Error::CannotReverseComplementUnstrandedMutation)
+        );
+        assert_eq!(
+            mutation.try_pyrimidine_center(),
+            Err(Error::CannotReverseComplementUnstrandedMutation)
+        );
     }
 
     // --- SmallMutationType::from_lengths ---
