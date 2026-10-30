@@ -147,7 +147,7 @@ This is an intentional design decision.
 
 ### Mutations
 
-Small mutations (SNVs, INDELs, Doublets, etc) will usually be represented using the `SmallMutation` type. It supports the fields:
+Small mutations (SNVs, INDELs, Doublets, etc) can be represented using the `SmallMutation` type. It supports the fields:
 
 - **location** -> reference-forward description of the sequence name and interbase-interval that is affected by the mutation (`Region`)
 - **reference** -> reference allele (strand-aware)
@@ -161,7 +161,17 @@ Often a user of seqlib might query a reference genome around that mutation. This
 - *region* -> reference-forward description of what part of the larger sequence this chunk arose from.
 - *strand* -> strand of the original sequence which contained `seq`.
 
-You can then associate a sourced sequence with a mutation using `MutationWithContext`
+You can then associate a sourced sequence with a mutation using `MutationWithContext`.  
+See `examples/mutations` for more info.
+
+[!Mutations Example Screenshot](figures/mutations_screenshot.png)
+
+#### Classifying Mutations
+
+To make it easier to classify different mutation types `MutationWithContext` can convert 
+
+
+
 
 ---
 
