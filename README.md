@@ -164,14 +164,7 @@ Often a user of seqlib might query a reference genome around that mutation. This
 You can then associate a sourced sequence with a mutation using `MutationWithContext`.  
 See `examples/mutations` for more info.
 
-[!Mutations Example Screenshot](figures/mutations_screenshot.png)
-
-#### Classifying Mutations
-
-To make it easier to classify different mutation types `MutationWithContext` can convert 
-
-
-
+![Mutations Example Screenshot](./figures/mutations_screenshot.png)
 
 ---
 
