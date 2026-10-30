@@ -1,6 +1,5 @@
 use seqlib::{
-    basepos,
-    coords::{BaseInterval, BasePos, InterbaseInterval, Region, Strand},
+    coords::{InterbaseInterval, Region, Strand},
     dna,
     mutations::{DnaSmallMutation, MutationWithContext},
     sequences::SourcedSeq,
@@ -24,7 +23,7 @@ fn main() {
 
     // Define a sequence from a reference genome which contains the mutated site
     let context = SourcedSeq::new(
-        dna!("ACGTACGTGCA"),
+        dna!("ACGTACGTGC"),
         Region::new("chr1", InterbaseInterval::from(2000..2010)),
         Some(Strand::Positive),
     );
