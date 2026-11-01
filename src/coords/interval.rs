@@ -250,6 +250,53 @@ impl InterbaseInterval {
 
         Some(local_interval)
     }
+
+    /// Expand an interval
+    ///
+    /// Pads the start and end positions of an interval so it includes more bases.
+    ///
+    /// Subtracts `left` from start and adds `right` to end position.
+    /// This is similar to `bedtools slop`.
+    ///
+    /// # Errors
+    /// - Returns a [CoordError::PositionUnderflow](`crate::error::CoordError::PositionUnderflow`) if
+    ///   expanding the interval would force `interval.start() < 0`.
+    /// - Returns a [CoordError::PositionOverflowAdd](`crate::error::CoordError::PositionOverflowAdd`) if
+    ///   expanding the interval would force `interval.start() < 0` or end > [`InterbasePos::MAX`]
+    ///
+    /// # Examples
+    ///
+    /// Say we want to expand an interval 4..5 to include 2 more downstream bases and one more
+    /// upstream bases:
+    ///
+    /// ```text
+    /// Positions:  0   1   2   3   4   5   6
+    /// Original:                   ├───┤        4..5
+    /// Expanded:           ├───────────────┤    2..6
+    /// ```
+    ///
+    /// ```
+    /// use seqlib::coords::InterbaseInterval;
+    ///
+    /// // Create interval
+    /// let interval = InterbaseInterval::from(4..5);
+    ///
+    /// // Expand interval by moving start position down two, and increasing end position by one
+    /// let expanded_interval = interval.expand(2, 1)?;
+    ///
+    /// assert_eq!(expanded_interval, InterbaseInterval::from(2..6));
+    /// # Ok::<(), seqlib::error::CoordError>(())    
+    /// ```
+    pub fn expand(&self, left: usize, right: usize) -> Result<InterbaseInterval> {
+        let new_start = self.start().try_sub(left)?;
+        let new_end = self.end().try_add(right)?;
+        let new_range = InterbaseInterval {
+            start: new_start,
+            end: new_end,
+        };
+
+        Ok(new_range)
+    }
 }
 
 /// Converts an [`InterbaseInterval`] into the equivalent zero-based,
@@ -570,5 +617,47 @@ impl From<BaseInterval> for std::ops::Range<usize> {
 impl From<&BaseInterval> for std::ops::Range<usize> {
     fn from(value: &BaseInterval) -> Self {
         value.start.get() - 1..value.end.get()
+    }
+}
+
+#[cfg(test)]
+mod expand_tests {
+    use super::*;
+
+    #[test]
+    fn expands_both_ends() {
+        let interval = InterbaseInterval::from(4..5);
+        assert_eq!(interval.expand(2, 1), Ok(InterbaseInterval::from(2..6)));
+        assert_eq!(interval, InterbaseInterval::from(4..5));
+    }
+
+    #[test]
+    fn zero_offsets_preserve_an_empty_interval() {
+        let interval = InterbaseInterval::from(4..4);
+        assert_eq!(interval.expand(0, 0), Ok(interval));
+    }
+
+    #[test]
+    fn reports_start_underflow() {
+        assert_eq!(
+            InterbaseInterval::from(0..1).expand(1, 0),
+            Err(Error::PositionUnderflow {
+                lhs: 0,
+                rhs: 1,
+                min: 0,
+            })
+        );
+    }
+
+    #[test]
+    fn reports_end_overflow() {
+        assert_eq!(
+            InterbaseInterval::from(usize::MAX..usize::MAX).expand(0, 1),
+            Err(Error::PositionOverflowAdd {
+                lhs: usize::MAX,
+                rhs: 1,
+                max: usize::MAX,
+            })
+        );
     }
 }
