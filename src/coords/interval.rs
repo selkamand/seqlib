@@ -262,7 +262,7 @@ impl InterbaseInterval {
     /// - Returns a [CoordError::PositionUnderflow](`crate::error::CoordError::PositionUnderflow`) if
     ///   expanding the interval would force `interval.start() < 0`.
     /// - Returns a [CoordError::PositionOverflowAdd](`crate::error::CoordError::PositionOverflowAdd`) if
-    ///   expanding the interval would force `interval.start() < 0` or end > [`InterbasePos::MAX`]
+    ///   expanding the interval would force `interval.end() > [`InterbasePos::MAX`]`
     ///
     /// # Examples
     ///
@@ -598,7 +598,7 @@ impl BaseInterval {
     /// - Returns a [CoordError::PositionUnderflow](`crate::error::CoordError::PositionUnderflow`) if
     ///   expanding the interval would force `interval.start() < 1`.
     /// - Returns a [CoordError::PositionOverflowAdd](`crate::error::CoordError::PositionOverflowAdd`) if
-    ///   expanding the interval would `interval.end()` > [`BasePos::MAX`]
+    ///   expanding the interval would `interval.end() > [`BasePos::MAX`]`
     ///
     /// # Examples
     ///
