@@ -287,10 +287,10 @@ impl InterbaseInterval {
     /// assert_eq!(expanded_interval, InterbaseInterval::from(2..6));
     /// # Ok::<(), seqlib::error::CoordError>(())    
     /// ```
-    pub fn expand(&self, left: usize, right: usize) -> Result<InterbaseInterval> {
+    pub fn expand(&self, left: usize, right: usize) -> Result<Self> {
         let new_start = self.start().try_sub(left)?;
         let new_end = self.end().try_add(right)?;
-        let new_range = InterbaseInterval {
+        let new_range = Self {
             start: new_start,
             end: new_end,
         };
@@ -586,6 +586,54 @@ impl BaseInterval {
         let local_position = pos.get() - self.start.get() + 1;
         BasePos::new(local_position).ok()
     }
+
+    /// Expand an interval
+    ///
+    /// Pads the start and end positions of an interval so it includes more bases.
+    ///
+    /// Subtracts `left` from start and adds `right` to end position.
+    /// This is similar to `bedtools slop`.
+    ///
+    /// # Errors
+    /// - Returns a [CoordError::PositionUnderflow](`crate::error::CoordError::PositionUnderflow`) if
+    ///   expanding the interval would force `interval.start() < 1`.
+    /// - Returns a [CoordError::PositionOverflowAdd](`crate::error::CoordError::PositionOverflowAdd`) if
+    ///   expanding the interval would `interval.end()` > [`BasePos::MAX`]
+    ///
+    /// # Examples
+    ///
+    /// Say we want to expand an interval 5-6 to include 2 more downstream bases and one more
+    /// upstream bases:
+    ///
+    /// ```text
+    /// Positions:   1   2   3   4   5   6  7
+    /// Original:                    ├───┤       4..5
+    /// Expanded:            ├──────────────┤    2..6
+    /// ```
+    ///
+    /// ```
+    /// use seqlib::coords::{BaseInterval, BasePos};
+    ///
+    /// // Create interval
+    /// let interval = BaseInterval::new(BasePos::new(5usize)?, BasePos::new(6)?)?;
+    ///
+    /// // Expand interval by moving start position down two, and increasing end position by one
+    /// let expanded_interval = interval.expand(2, 1)?;
+    ///
+    /// assert_eq!(expanded_interval, BaseInterval::new(BasePos::new(3)?, BasePos::new(7)?)?);
+    ///
+    /// # Ok::<(), seqlib::error::CoordError>(())    
+    /// ```
+    pub fn expand(&self, left: usize, right: usize) -> Result<Self> {
+        let new_start = self.start().try_sub(left)?;
+        let new_end = self.end().try_add(right)?;
+        let new_range = Self {
+            start: new_start,
+            end: new_end,
+        };
+
+        Ok(new_range)
+    }
 }
 
 impl Default for BaseInterval {
@@ -624,6 +672,7 @@ impl From<&BaseInterval> for std::ops::Range<usize> {
 mod expand_tests {
     use super::*;
 
+    // Test InterbaseInterval Expansion
     #[test]
     fn expands_both_ends() {
         let interval = InterbaseInterval::from(4..5);
@@ -653,6 +702,49 @@ mod expand_tests {
     fn reports_end_overflow() {
         assert_eq!(
             InterbaseInterval::from(usize::MAX..usize::MAX).expand(0, 1),
+            Err(Error::PositionOverflowAdd {
+                lhs: usize::MAX,
+                rhs: 1,
+                max: usize::MAX,
+            })
+        );
+    }
+
+    // Test BaseInterval Expansion
+    #[test]
+    fn base_expand_and_noop() {
+        let interval =
+            BaseInterval::new(BasePos::new(5).unwrap(), BasePos::new(6).unwrap()).unwrap();
+        let expanded =
+            BaseInterval::new(BasePos::new(3).unwrap(), BasePos::new(7).unwrap()).unwrap();
+
+        assert_eq!(interval.expand(2, 1), Ok(expanded));
+        assert_eq!(interval.expand(0, 0), Ok(interval));
+    }
+
+    #[test]
+    fn base_expand_to_min_and_underflow() {
+        let interval =
+            BaseInterval::new(BasePos::new(2).unwrap(), BasePos::new(4).unwrap()).unwrap();
+        let at_min = BaseInterval::new(BasePos::MIN, BasePos::new(4).unwrap()).unwrap();
+
+        assert_eq!(interval.expand(1, 0), Ok(at_min));
+        assert_eq!(
+            interval.expand(2, 0),
+            Err(Error::PositionUnderflow {
+                lhs: 2,
+                rhs: 2,
+                min: 1
+            })
+        );
+    }
+
+    #[test]
+    fn base_expand_end_overflow() {
+        let interval = BaseInterval::new(BasePos::MAX, BasePos::MAX).unwrap();
+
+        assert_eq!(
+            interval.expand(0, 1),
             Err(Error::PositionOverflowAdd {
                 lhs: usize::MAX,
                 rhs: 1,
